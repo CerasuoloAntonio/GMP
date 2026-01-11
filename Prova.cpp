@@ -37,15 +37,24 @@ enum directions{
     right
 };
 
+enum gameState{
+    menu,
+    world,
+    combat
+};
+
 void intro();
 void drawLine();
 void write(string phrase, int line, enum alignment align);
 void writeTitle(string phrase);
 void drawLetter(int n);
 void printAlphabet();
-void readInput();
 void setFixedPointer(enum alignment position);
 void run();
+void menuInputManager();
+void combatInputManager();
+void worldInputManager();
+void clearLine(int line);
 
 int calculateAlignmentX(enum alignment position, int textLength);
 int calculateAlignmentY(enum alignment position, int textLength);
@@ -128,12 +137,13 @@ class button : public interactable {
         void toggleSelected(){
             isSelected = !isSelected;
             toggleSelectedIcon();
+            clearLine(pos.get_y());
             display(this->pos);
         }
 
         void toggleSelectedIcon(){
             if(isSelected){
-                content = content + " " + selectedIndicator;
+                content = Basecontent + " " + selectedIndicator;
             }
             else{
                 content = Basecontent;
@@ -176,21 +186,74 @@ class monster : public entity{
 };
 
 class gameController{
-    public:
+    private:
         int button_count;
         button* buttons[10];
+        gameState state;
+        int selectedButton;
+    public:        
     
         gameController(){
             button_count = 0;
+            state = menu;
         }
 
         void addButton(button newButton){
             buttons[button_count] = new button(newButton);
             if(button_count == 0){
                 buttons[button_count]->toggleSelected();
+                selectedButton = button_count;
             }
             button_count++;
             
+        }
+
+        void changeSelectedButton(enum directions direction){
+            switch (direction)
+            {
+            case directions::up:
+                buttons[selectedButton]->toggleSelected();
+                if(selectedButton == 0){
+                    buttons[button_count - 1]->toggleSelected();
+                    selectedButton = button_count - 1;
+                }
+                else{
+                    buttons[selectedButton-1]->toggleSelected();
+                    selectedButton -= 1;
+                }
+                break;
+            case directions::down:
+                buttons[selectedButton]->toggleSelected();
+                if(selectedButton == button_count - 1){
+                    buttons[0]->toggleSelected();
+                    selectedButton = 0;
+                }
+                else{
+                    buttons[selectedButton + 1]->toggleSelected();
+                    selectedButton += 1;
+                }
+                break;
+            case directions::left:
+                break;
+            case directions::right:
+                break;
+            default:
+                break;
+            }
+        }
+        
+        void checkState(){
+            switch(state){
+                case menu :
+                    menuInputManager();
+                    break;
+                case combat :
+                    combatInputManager();
+                    break;
+                case world :
+                    worldInputManager();
+                    break;
+            }
         }
     
 };
@@ -248,13 +311,12 @@ int main(){
 
 void run(){
     intro();
-    readInput();
 }
 
 
 void intro(){
     drawLine();
-    for(int i = 0; i < 27; i++){
+    for(int i = 0; i < screenHeight; i++){
         cout << "|" << setfill(' ') << setw(screenLenght) << "|" << endl;
     }
     drawLine();
@@ -270,6 +332,7 @@ void intro(){
 
     writeTitle("the game");
     setFixedPointer(position_end);
+    gameManager.checkState();
 }
 
 void drawLine(){
@@ -363,23 +426,7 @@ void printAlphabet(){
     }
 }
 
-void readInput(){
-    char input;
-    input = _getch();
-    switch(input){
-        case 'w' :
-            break;
-        case 'a' :
-            break;
-        case 's' :
-            break;
-        case 'd' :
-            break;    
-        default:
-            return;
-    }
-    readInput();
-}
+
 
 void setFixedPointer(enum alignment position){
     if(position == alignment::position_end){
@@ -420,4 +467,68 @@ int calculateAlignmentY(enum alignment position, int textLength){
         default :
             return 1;
     }
+    
+}
+
+void menuInputManager(){
+    char input = _getch();
+    switch(input){
+        case 'w' :
+            gameManager.changeSelectedButton(up);
+            break;
+        case 'a' :
+            gameManager.changeSelectedButton(up);
+            break;
+        case 's' :
+            gameManager.changeSelectedButton(down);
+            break;
+        case 'd' :
+            cout << input << endl;
+            break;    
+        default:
+            return;
+    }
+    setFixedPointer(position_end);
+    menuInputManager();
+}
+
+void combatInputManager(){
+    char input = _getch();
+    switch(input){
+        case 'w' :
+            break;
+        case 'a' :
+            break;
+        case 's' :
+            break;
+        case 'd' :
+            break;    
+        default:
+            return;
+    }
+    setFixedPointer(position_end);
+    combatInputManager();
+}
+
+void worldInputManager(){
+    char input = _getch();
+    switch(input){
+        case 'w' :
+            break;
+        case 'a' :
+            break;
+        case 's' :
+            break;
+        case 'd' :
+            break;    
+        default:
+            return;
+    }
+    setFixedPointer(position_end);
+    worldInputManager();
+}
+
+void clearLine(int line){
+    cout << "\033[" <<line << ";1H" << "|" << setfill(' ') << setw(screenLenght) << "|";
+    setFixedPointer(position_end);
 }

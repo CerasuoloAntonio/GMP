@@ -57,24 +57,27 @@ const int screenLenght = 119;
 const int letterLines = 5;
 
 
-void intro();
+
+
 void drawLine();
 void write(string phrase, int line, enum alignment align);
 void writeTitle(string phrase);
 void drawLetter(int n);
 void printAlphabet();
 void setFixedPointer(enum alignment position);
-void run();
 void menuInputManager();
 void combatInputManager();
 void worldInputManager();
 void clearLine(int line);
-
 int calculateAlignmentX(enum alignment position, int textLength);
 int calculateAlignmentY(enum alignment position, int textLength);
 
 class object{
+};
 
+struct node{
+    object* ogetto;
+    node* next;
 };
 
 class coordinates : public object{
@@ -107,7 +110,7 @@ class coordinates : public object{
 
 class scene : public object{
     private : 
-        //object container[50]; dovrei fare una lista di oggetti contenuti nella scena per poi cancellarli quando cancello la scena
+        node* sceneList;
         const static int mapHeight = 29;
         string sceneName;
         string map[mapHeight];
@@ -117,7 +120,7 @@ class scene : public object{
         
 
         scene(string name = "scena") : sceneName(name){
-
+            initializeObjectList();
         }
 
         void draw(){
@@ -125,6 +128,7 @@ class scene : public object{
                 cout << map[n] << endl;
             }
         }
+
         void deleteScene(){
             setFixedPointer(position_begin);
             for(int i = 0; i < screenHeight + 2; i++ ){
@@ -150,6 +154,31 @@ class scene : public object{
                 }
             }
             inputFile.close();
+        }
+
+        void initializeObjectList(){
+            sceneList = new node;
+            sceneList->ogetto = this;
+            sceneList->next = NULL;
+        }
+
+        //la lista aggiunge gli elementi in cima così quando vengono distrutti 
+        void addObjectToObjectList(object* nuovo){
+            node* nodo = new node;
+            nodo->ogetto = nuovo;
+            nodo->next = sceneList;
+
+            sceneList = nodo;
+        }
+
+        void destroyScene(){
+            node* temp = sceneList;
+            int i = 0;
+            while(temp != NULL){
+                cout << i << endl;
+                i++;
+                temp = temp->next;
+            }
         }
 };
 
@@ -265,12 +294,12 @@ class gameController : public object{
         button* buttons[10];
         gameState state;
         int selectedButton;
-        scene scenaPrincipale;
+        scene* scenaPrincipale;
     public:        
 
-        void setPrincipalScene(scene scena){scenaPrincipale = scena;}
+        void setPrincipalScene(scene& scena){scenaPrincipale = &scena;}
 
-        scene& getPrincipalScene(){return scenaPrincipale;}
+        scene& getPrincipalScene(){return *scenaPrincipale;}
         enum buttonTypes getSelectedButton(){
             for(int i = 0; i < 10; i++){
                 if(buttons[i]->getSelected()){
@@ -285,8 +314,8 @@ class gameController : public object{
             state = menu;
         }
 
-        void addButton(button newButton){
-            buttons[button_count] = new button(newButton);
+        void addButton(button* newButton){
+            buttons[button_count] = newButton;
             if(button_count == 0){
                 buttons[button_count]->toggleSelected();
                 selectedButton = button_count;
@@ -359,6 +388,9 @@ class gameController : public object{
 
 gameController gameManager;
 
+void run(scene& scena);
+void intro(scene& scena);
+
 string alphabet[26][letterLines] = {
     /* a */ {" █████ ", "██   ██", "███████", "██   ██", "██   ██"},
     /* b */ {"██████ ", "██   ██", "██████ ", "██   ██", "██████ "},
@@ -399,34 +431,39 @@ int main(){
     scene scena1 = scene("prova");
     gameManager.setPrincipalScene(scena1);
 
-    run();
+    run(scena1);
 
     system("Pause");
 
     return 0;
 }
 
-void run(){
-    intro();
+void run(scene& scena){
+    intro(scena);
 }
 
 
-void intro(){
+void intro(scene& scena){
     drawLine();
     for(int i = 0; i < screenHeight; i++){
         cout << "|" << setfill(' ') << setw(screenLenght) << "|" << endl;
     }
     drawLine();
 
-    button primobottone("New Game",newGameButton, align_center, 20, true), 
-           secondobottone("Continue", continueButton, align_center , 21, true),
-           terzobottone("Options ", optionButton, align_center , 22, true),
-           quartobottone("Exit", exitButton, align_center , 23, true);
+    button* primo = new button("New Game", newGameButton, align_center, 20, true);
+    button* secondo = new button("Continue", continueButton, align_center, 21, true);
+    button* terzo = new button("Options", optionButton, align_center, 22, true);
+    button* quarto = new button("Exit", exitButton, align_center, 23, true);
 
-    gameManager.addButton(primobottone);
-    gameManager.addButton(secondobottone);
-    gameManager.addButton(terzobottone);
-    gameManager.addButton(quartobottone);
+    gameManager.addButton(primo);
+    gameManager.addButton(secondo);
+    gameManager.addButton(terzo);
+    gameManager.addButton(quarto);
+
+    scena.addObjectToObjectList(primo);
+    scena.addObjectToObjectList(secondo);
+    scena.addObjectToObjectList(terzo);
+    scena.addObjectToObjectList(quarto);
 
     writeTitle("the game");
     setFixedPointer(position_end);
@@ -436,7 +473,6 @@ void intro(){
 void drawLine(){
     cout << "|" << setfill('~') << setw(screenLenght) << "|" << endl;
 }
-
 
 void write(string phrase, int line,enum alignment align){
 
@@ -524,8 +560,6 @@ void printAlphabet(){
     }
 }
 
-
-
 void setFixedPointer(enum alignment position){
     switch(position){
         case position_end :
@@ -588,10 +622,9 @@ void menuInputManager(){
             gameManager.changeSelectedButton(down);
             break;
         case 'd' :
-            cout << input << endl;
+            gameManager.getPrincipalScene().destroyScene();
             break;    
         case '\r' :
-            gameManager.onButtonClicked(gameManager.getSelectedButton());
             break;
         case '\033' :
             cout << "exit" << endl;
@@ -599,32 +632,42 @@ void menuInputManager(){
         default:
             return;
         }
-    }
-    
+    } 
     setFixedPointer(position_end);
 }
 
 void combatInputManager(){
-    char input = _getch();
-    switch(input){
+    while(true){
+        char input = _getch();
+        switch(input){
         case 'w' :
+            
             break;
         case 'a' :
             break;
         case 's' :
+            
             break;
         case 'd' :
+            
             break;    
+        case '\r' :
+            
+            break;
+        case '\033' :
+            
+            break; 
         default:
             return;
+        }
     }
     setFixedPointer(position_end);
-    combatInputManager();
 }
 
 void worldInputManager(){
-    char input = _getch();
-    switch(input){
+    while(true){
+        char input = _getch();
+        switch(input){
         case 'w' :
             break;
         case 'a' :
@@ -633,11 +676,15 @@ void worldInputManager(){
             break;
         case 'd' :
             break;    
+        case '\r' :
+            break;
+        case '\033' :
+            break; 
         default:
             return;
+        }
     }
     setFixedPointer(position_end);
-    worldInputManager();
 }
 
 void clearLine(int line){

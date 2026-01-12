@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstdlib> // per il random
 #include <iomanip>
-#include <map>
+#include <fstream>
 #include <conio.h>
 #ifdef _WIN32
 #include <windows.h>
@@ -27,7 +27,8 @@ enum alignment {
     align_left,
     align_right,
     position_end,
-    position_start 
+    position_start,
+    position_begin 
 };
 
 enum directions{
@@ -42,6 +43,19 @@ enum gameState{
     world,
     combat
 };
+
+enum buttonTypes{
+    newGameButton,
+    continueButton,
+    exitButton,
+    generic,
+    optionButton
+};
+
+const int screenHeight = 27;
+const int screenLenght = 119;
+const int letterLines = 5;
+
 
 void intro();
 void drawLine();
@@ -59,9 +73,11 @@ void clearLine(int line);
 int calculateAlignmentX(enum alignment position, int textLength);
 int calculateAlignmentY(enum alignment position, int textLength);
 
-class button;
+class object{
 
-class coordinates{
+};
+
+class coordinates : public object{
     private :
 
         int x;
@@ -89,7 +105,55 @@ class coordinates{
         int get_y(){return y;}
 };
 
-class interactable{
+class scene : public object{
+    private : 
+        //object container[50]; dovrei fare una lista di oggetti contenuti nella scena per poi cancellarli quando cancello la scena
+        const static int mapHeight = 29;
+        string sceneName;
+        string map[mapHeight];
+        string temp;
+        
+    public :
+        
+
+        scene(string name = "scena") : sceneName(name){
+
+        }
+
+        void draw(){
+            for(int n = 0; n < mapHeight; n++){
+                cout << map[n] << endl;
+            }
+        }
+        void deleteScene(){
+            setFixedPointer(position_begin);
+            for(int i = 0; i < screenHeight + 2; i++ ){
+                cout << setfill(' ') << setw(screenLenght + 1) << " " << endl;
+            }
+            setFixedPointer(position_begin);
+        }
+
+        void createMap(int mapId){
+            int currentMap = 0;
+            int i = 0;
+            ifstream inputFile("mappe.txt");
+            while(getline(inputFile, temp)){ 
+                if(temp == ";"){
+                    currentMap++;
+                    continue;
+                }
+                if(currentMap == mapId){
+                    if(i < mapHeight){ 
+                    map[i] = temp;
+                    i++;
+                    }
+                }
+            }
+            inputFile.close();
+        }
+};
+
+class interactable : public object{
     protected :
 
         bool isSelected;
@@ -102,22 +166,32 @@ class interactable{
     public :
 
         interactable(string text = "Nuovo interagibile", bool selected = false, bool shown = false, char indicator = '<') : content(text), Basecontent(text),isSelected(selected), isShown(shown), selectedIndicator(indicator){
-            
-        }
+
+        }   
 
         void display(coordinates position){
+            
             cout << "\033[" << position.get_y() << ";" << position.get_x() << "H" << content << endl;
         }
 
         bool getShown(){return isShown;}
         bool getSelected(){return isSelected;}
 
+
+        void buttonPushedManager(){
+
+        }
+
 };
 
 class button : public interactable {
+    private : 
+        enum buttonTypes buttonType;
     public :
 
-        button(string text, coordinates position, bool shown = false, char indicator = '<' , bool selected = false) : interactable(text,selected,shown, indicator){
+        enum buttonTypes getType(){return buttonType;}
+
+        button(string text, coordinates position, enum buttonTypes type = generic, bool shown = false, char indicator = '<' , bool selected = false) : buttonType(type), interactable(text,selected,shown, indicator){
             content = text;
             pos = position;
             toggleSelectedIcon();
@@ -126,7 +200,7 @@ class button : public interactable {
             }
         }
 
-        button(string text = "nuovo bottone",enum alignment alignment = align_left, int yPosition = 1 , bool shown = false, char indicator = '<' , bool selected = false) : interactable(text,selected,shown, indicator){
+        button(string text = "nuovo bottone",enum buttonTypes type = generic,enum alignment alignment = align_left, int yPosition = 1 , bool shown = false, char indicator = '<' , bool selected = false): buttonType(type), interactable(text,selected,shown, indicator){
             pos = coordinates (alignment,yPosition, text.length());
             toggleSelectedIcon();
             if(isShown){
@@ -152,7 +226,7 @@ class button : public interactable {
 
 }; 
 
-class entity {
+class entity : public object{
     
 
     private :
@@ -185,13 +259,26 @@ class monster : public entity{
 
 };
 
-class gameController{
+class gameController : public object{
     private:
         int button_count;
         button* buttons[10];
         gameState state;
         int selectedButton;
+        scene scenaPrincipale;
     public:        
+
+        void setPrincipalScene(scene scena){scenaPrincipale = scena;}
+
+        scene& getPrincipalScene(){return scenaPrincipale;}
+        enum buttonTypes getSelectedButton(){
+            for(int i = 0; i < 10; i++){
+                if(buttons[i]->getSelected()){
+                    return (buttons[i]->getType());
+                }
+            }
+            return generic;
+        }
     
         gameController(){
             button_count = 0;
@@ -255,14 +342,22 @@ class gameController{
                     break;
             }
         }
-    
+        
+        void onButtonClicked(enum buttonTypes type){
+            switch (type){
+                case newGameButton:
+                    getPrincipalScene().deleteScene();
+                    getPrincipalScene().createMap(1);
+                    getPrincipalScene().draw();
+                    break;
+            
+            default:
+                break;
+            }
+        }
 };
 
 gameController gameManager;
-
-const int screenHeight = 27;
-const int screenLenght = 119;
-const int letterLines = 5;
 
 string alphabet[26][letterLines] = {
     /* a */ {" █████ ", "██   ██", "███████", "██   ██", "██   ██"},
@@ -301,7 +396,9 @@ int main(){
         SetConsoleOutputCP(CP_UTF8);
     #endif
 
-    
+    scene scena1 = scene("prova");
+    gameManager.setPrincipalScene(scena1);
+
     run();
 
     system("Pause");
@@ -321,14 +418,15 @@ void intro(){
     }
     drawLine();
 
-    button primobottone("New Game", align_center, 20, true), 
-           secondobottone("Continue", align_center , 21, true),
-           terzobottone("Options ",  align_center , 22, true),
-           quartobottone("Exit",  align_center , 23, true);
-           gameManager.addButton(primobottone);
-           gameManager.addButton(secondobottone);
-           gameManager.addButton(terzobottone);
-           gameManager.addButton(quartobottone);
+    button primobottone("New Game",newGameButton, align_center, 20, true), 
+           secondobottone("Continue", continueButton, align_center , 21, true),
+           terzobottone("Options ", optionButton, align_center , 22, true),
+           quartobottone("Exit", exitButton, align_center , 23, true);
+
+    gameManager.addButton(primobottone);
+    gameManager.addButton(secondobottone);
+    gameManager.addButton(terzobottone);
+    gameManager.addButton(quartobottone);
 
     writeTitle("the game");
     setFixedPointer(position_end);
@@ -429,11 +527,16 @@ void printAlphabet(){
 
 
 void setFixedPointer(enum alignment position){
-    if(position == alignment::position_end){
-        cout << "\033[30;1H";
-    }
-    if(position == alignment::position_start){
-        cout << "\033[2;2H";
+    switch(position){
+        case position_end :
+            cout << "\033[30;1H";
+            break;
+        case position_start :
+            cout << "\033[2;2H";
+            break;
+        case position_begin :
+            cout << "\033[1;1H";
+            break;
     }
 }
 
@@ -471,8 +574,10 @@ int calculateAlignmentY(enum alignment position, int textLength){
 }
 
 void menuInputManager(){
-    char input = _getch();
-    switch(input){
+    
+    while(true){
+        char input = _getch();
+        switch(input){
         case 'w' :
             gameManager.changeSelectedButton(up);
             break;
@@ -485,11 +590,18 @@ void menuInputManager(){
         case 'd' :
             cout << input << endl;
             break;    
+        case '\r' :
+            gameManager.onButtonClicked(gameManager.getSelectedButton());
+            break;
+        case '\033' :
+            cout << "exit" << endl;
+            break; 
         default:
             return;
+        }
     }
+    
     setFixedPointer(position_end);
-    menuInputManager();
 }
 
 void combatInputManager(){

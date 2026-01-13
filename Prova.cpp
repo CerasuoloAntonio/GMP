@@ -607,10 +607,41 @@ int calculateAlignmentY(enum alignment position, int textLength){
     
 }
 
+/*
+Su → 72
+
+Giù → 80
+
+Sinistra → 75
+
+Destra → 77
+
+        
+*/
+
 void menuInputManager(){
     
     while(true){
-        char input = _getch();
+        int input = _getch();
+        if(input == 0 || input == 224){
+            int arrow = _getch();
+            switch (arrow){
+                case 72 :
+                    gameManager.changeSelectedButton(up);
+                    break;
+                case 80 :
+                    gameManager.changeSelectedButton(down);
+                    break;
+                case 75 :
+                    gameManager.changeSelectedButton(up);
+                    break;
+                case 77 :
+                    gameManager.changeSelectedButton(down);
+                    break;
+            }
+            continue;
+        }
+
         switch(input){
         case 'w' :
             gameManager.changeSelectedButton(up);
@@ -622,13 +653,14 @@ void menuInputManager(){
             gameManager.changeSelectedButton(down);
             break;
         case 'd' :
-            gameManager.getPrincipalScene().destroyScene();
+            gameManager.changeSelectedButton(down);
             break;    
         case '\r' :
+            gameManager.onButtonClicked(gameManager.getSelectedButton());
             break;
-        case '\033' :
+        case 27 :
             cout << "exit" << endl;
-            break; 
+            break;
         default:
             return;
         }

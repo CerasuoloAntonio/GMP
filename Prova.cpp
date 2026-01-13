@@ -73,6 +73,8 @@ int calculateAlignmentX(enum alignment position, int textLength);
 int calculateAlignmentY(enum alignment position, int textLength);
 
 class object{
+    public :
+        virtual ~object(){}
 };
 
 struct node{
@@ -157,9 +159,7 @@ class scene : public object{
         }
 
         void initializeObjectList(){
-            sceneList = new node;
-            sceneList->ogetto = this;
-            sceneList->next = NULL;
+            sceneList = nullptr;
         }
 
         //la lista aggiunge gli elementi in cima così quando vengono distrutti 
@@ -173,12 +173,16 @@ class scene : public object{
 
         void destroyScene(){
             node* temp = sceneList;
-            int i = 0;
             while(temp != NULL){
-                cout << i << endl;
-                i++;
-                temp = temp->next;
+                node* next = temp->next;
+                delete temp->ogetto;
+                delete temp;
+                temp = next;
             }
+
+            sceneList = nullptr;
+
+            delete this;
         }
 };
 
@@ -623,7 +627,7 @@ void menuInputManager(){
     
     while(true){
         int input = _getch();
-        if(input == 0 || input == 224){
+        if(input == 0 || input == 224){ //l'input deve essere controllato 2 volte nelle frecce direzionali perchè restituiscono 2 interi
             int arrow = _getch();
             switch (arrow){
                 case 72 :
@@ -636,7 +640,8 @@ void menuInputManager(){
                     gameManager.changeSelectedButton(up);
                     break;
                 case 77 :
-                    gameManager.changeSelectedButton(down);
+                    gameManager.getPrincipalScene().destroyScene();
+                    //gameManager.changeSelectedButton(down);
                     break;
             }
             continue;

@@ -82,6 +82,19 @@ struct node{
     node* next;
 };
 
+struct node4d{
+    object* ogetto;
+    node4d* down;
+    node4d* up;
+    node4d* left;
+    node4d* right;
+};
+
+struct pointerlist4d{
+    node4d* pointer;
+    pointerlist4d* next;
+};
+
 class coordinates : public object{
     private :
 
@@ -295,7 +308,9 @@ class monster : public entity{
 class gameController : public object{
     private:
         int button_count;
-        button* buttons[10];
+        button* buttons[10]; // da sostituire con una lista bidimensionale
+        node4d* buttonList = nullptr;
+        pointerlist4d* buttonPointers;
         gameState state;
         int selectedButton;
         scene* scenaPrincipale;
@@ -303,7 +318,7 @@ class gameController : public object{
 
         void setPrincipalScene(scene& scena){scenaPrincipale = &scena;}
 
-        scene& getPrincipalScene(){return *scenaPrincipale;}
+        scene& getPrincipalScene(){return *scenaPrincipale;} //da adattare alla lista
         enum buttonTypes getSelectedButton(){
             for(int i = 0; i < 10; i++){
                 if(buttons[i]->getSelected()){
@@ -318,17 +333,74 @@ class gameController : public object{
             state = menu;
         }
 
-        void addButton(button* newButton){
-            buttons[button_count] = newButton;
-            if(button_count == 0){
-                buttons[button_count]->toggleSelected();
-                selectedButton = button_count;
+        void addButton(button* newButton, coordinates position){
+            node4d* nodo = new node4d;
+            if(buttonList == nullptr){
+                
+                nodo->ogetto = newButton;
+                nodo->up = NULL;
+                nodo->down = NULL;
+                nodo->left = NULL;
+                nodo->right = NULL;
+                buttonPointers->pointer = nodo;
+                buttonPointers->next = NULL; 
+                return;
             }
-            button_count++;
+
+            addbuttonPointer(nodo);
+
+            nodo->ogetto = newButton;
+            nodo->up = getNeighbour(position,directions::up);
+            nodo->down = getNeighbour(position,directions::down);
+            nodo->left = getNeighbour(position,directions::left);
+            nodo->right = getNeighbour(position,directions::right);
             
         }
 
-        void changeSelectedButton(enum directions direction){
+        void addbuttonPointer(node4d* nodo){
+            pointerlist4d* tmp = new pointerlist4d();
+            tmp->pointer = nodo;
+            tmp->next = buttonPointers;
+            buttonPointers = tmp;
+        }
+
+        node4d* getNeighbour(coordinates position, directions direction){
+            node4d* neighbour = gotoNode(position);
+            if(neighbour == NULL){
+                return NULL;
+            }
+            switch(direction){
+                case directions::up: 
+                    return neighbour->up;
+                case directions::down: 
+                    return neighbour->down;
+                case directions::right:
+                    return neighbour->right; 
+                case directions::left: 
+                    return neighbour->left;
+                default:
+                    return NULL;
+            }
+        }
+
+        node4d* gotoNode(coordinates position){
+            node4d* pointerNode = buttonList;
+            for(int i = 0; i != position.get_x(); i++){
+                if(pointerNode->right == NULL){
+                    return NULL;
+                }
+                pointerNode = pointerNode->right;  
+            }
+            for(int i = 0; i != position.get_y(); i++){
+                if(pointerNode->down == NULL){
+                    return NULL;
+                }
+                pointerNode = pointerNode->down;  
+            }
+            return pointerNode;
+        }
+
+        void changeSelectedButton(enum directions direction){ //da adattare alla lista di bottoni e aggiungere le direzioni orizzontali
             switch (direction)
             {
             case directions::up:
@@ -459,10 +531,10 @@ void intro(scene& scena){
     button* terzo = new button("Options", optionButton, align_center, 22, true);
     button* quarto = new button("Exit", exitButton, align_center, 23, true);
 
-    gameManager.addButton(primo);
-    gameManager.addButton(secondo);
-    gameManager.addButton(terzo);
-    gameManager.addButton(quarto);
+    gameManager.addButton(primo, coordinates(1,1));
+    gameManager.addButton(secondo, coordinates(1,2));
+    gameManager.addButton(terzo, coordinates(1,3));
+    gameManager.addButton(quarto, coordinates(1,4));
 
     scena.addObjectToObjectList(primo);
     scena.addObjectToObjectList(secondo);

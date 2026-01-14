@@ -82,19 +82,7 @@ struct node{
     node* next;
 };
 
-struct node4d{
-    object* oggetto;
-    coordinates posizione;
-    node4d* down;
-    node4d* up;
-    node4d* left;
-    node4d* right;
-};
 
-struct pointerlist4d{
-    node4d* pointer;
-    pointerlist4d* next;
-};
 
 class coordinates : public object{
     private :
@@ -122,6 +110,20 @@ class coordinates : public object{
         void set_y(int i){y=i;}
         int get_x(){return x;}
         int get_y(){return y;}
+};
+
+struct node4d{
+    object* oggetto;
+    coordinates posizione;
+    node4d* down;
+    node4d* up;
+    node4d* left;
+    node4d* right;
+};
+
+struct pointerlist4d{
+    node4d* pointer;
+    pointerlist4d* next;
 };
 
 class scene : public object{
@@ -360,6 +362,7 @@ class gameController : public object{
             nodo->right = getNeighbour(position,directions::right);
             nodo->posizione = position;
             
+            updateListLinks();
         }
 
         void addbuttonPointer(node4d* nodo){
@@ -462,6 +465,48 @@ class gameController : public object{
             default:
                 break;
             }
+        }
+        
+        void updateListLinks(){
+            coordinates nodePosition, neighbourPosition;
+            pointerlist4d* tmp = buttonPointers; 
+            pointerlist4d *next = buttonPointers->next;
+            int diff_x, diff_y;
+            while (tmp != NULL){
+
+                next = tmp->next;
+                nodePosition = tmp->pointer->posizione;
+                
+                while (next != NULL){
+
+                    neighbourPosition = next->pointer->posizione;
+
+                    diff_x = nodePosition.get_x() - neighbourPosition.get_x();
+                    diff_y = nodePosition.get_y() - neighbourPosition.get_y();
+
+                    if(diff_x == 0 && diff_y == 1){
+                        tmp->pointer->up = next->pointer;
+                        next->pointer->down = tmp->pointer;
+                    }
+                    if(diff_x == 0 && diff_y == -1){
+                        tmp->pointer->down = next->pointer;
+                        next->pointer->up = tmp->pointer;
+                    }
+                    if(diff_x == -1 && diff_y == 0){
+                        tmp->pointer->left = next->pointer;
+                        next->pointer->right = tmp->pointer;
+                    }
+                    if(diff_x == 1 && diff_y == 0){
+                        tmp->pointer->right = next->pointer;
+                        next->pointer->left = tmp->pointer;
+                    }
+
+                    next = next->next;
+                }
+
+                tmp = tmp->next;
+            }
+            
         }
 };
 
@@ -623,7 +668,7 @@ void writeTitle(string phrase){
     
 }
 
-void drawLetter(int n){
+void drawLetter(int n){ // non utilizzata
     for(int i = 0; i < letterLines; i++){
         cout << alphabet[n][i] << "\033[B\033[" << alphabet[n][i].length() <<"D";
     }

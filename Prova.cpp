@@ -83,7 +83,8 @@ struct node{
 };
 
 struct node4d{
-    object* ogetto;
+    object* oggetto;
+    coordinates posizione;
     node4d* down;
     node4d* up;
     node4d* left;
@@ -223,11 +224,6 @@ class interactable : public object{
         bool getShown(){return isShown;}
         bool getSelected(){return isSelected;}
 
-
-        void buttonPushedManager(){
-
-        }
-
 };
 
 class button : public interactable {
@@ -308,24 +304,23 @@ class monster : public entity{
 class gameController : public object{
     private:
         int button_count;
-        button* buttons[10]; // da sostituire con una lista bidimensionale
         node4d* buttonList = nullptr;
-        pointerlist4d* buttonPointers;
+        pointerlist4d* buttonPointers = nullptr;
         gameState state;
-        int selectedButton;
+        node4d* selectedButton;
         scene* scenaPrincipale;
     public:        
 
         void setPrincipalScene(scene& scena){scenaPrincipale = &scena;}
 
-        scene& getPrincipalScene(){return *scenaPrincipale;} //da adattare alla lista
-        enum buttonTypes getSelectedButton(){
-            for(int i = 0; i < 10; i++){
-                if(buttons[i]->getSelected()){
-                    return (buttons[i]->getType());
-                }
+        scene& getPrincipalScene(){return *scenaPrincipale;} 
+        
+        enum buttonTypes getSelectedButtonType(){
+            button* tmp =dynamic_cast<button*>(selectedButton->oggetto);
+            if(tmp == NULL){
+                return generic;
             }
-            return generic;
+            return tmp->getType();
         }
     
         gameController(){
@@ -337,23 +332,33 @@ class gameController : public object{
             node4d* nodo = new node4d;
             if(buttonList == nullptr){
                 
-                nodo->ogetto = newButton;
+                newButton->toggleSelected();
+                selectedButton = nodo;
+
+                nodo->oggetto = newButton;
                 nodo->up = NULL;
                 nodo->down = NULL;
                 nodo->left = NULL;
                 nodo->right = NULL;
+                nodo->posizione = position;
+
+                buttonList = nodo;
+
+                buttonPointers = new pointerlist4d();
                 buttonPointers->pointer = nodo;
-                buttonPointers->next = NULL; 
+                buttonPointers->next = NULL;
+
                 return;
             }
 
             addbuttonPointer(nodo);
 
-            nodo->ogetto = newButton;
+            nodo->oggetto = newButton;
             nodo->up = getNeighbour(position,directions::up);
             nodo->down = getNeighbour(position,directions::down);
             nodo->left = getNeighbour(position,directions::left);
             nodo->right = getNeighbour(position,directions::right);
+            nodo->posizione = position;
             
         }
 
@@ -400,38 +405,36 @@ class gameController : public object{
             return pointerNode;
         }
 
-        void changeSelectedButton(enum directions direction){ //da adattare alla lista di bottoni e aggiungere le direzioni orizzontali
+        void changeSelectedButton(enum directions direction){
+            button* tmp = dynamic_cast<button*>(selectedButton->oggetto);
+            tmp->toggleSelected();
             switch (direction)
             {
             case directions::up:
-                buttons[selectedButton]->toggleSelected();
-                if(selectedButton == 0){
-                    buttons[button_count - 1]->toggleSelected();
-                    selectedButton = button_count - 1;
-                }
-                else{
-                    buttons[selectedButton-1]->toggleSelected();
-                    selectedButton -= 1;
+                if(selectedButton->up != NULL){
+                    selectedButton = selectedButton->up;
                 }
                 break;
             case directions::down:
-                buttons[selectedButton]->toggleSelected();
-                if(selectedButton == button_count - 1){
-                    buttons[0]->toggleSelected();
-                    selectedButton = 0;
-                }
-                else{
-                    buttons[selectedButton + 1]->toggleSelected();
-                    selectedButton += 1;
+                if(selectedButton->down != NULL){
+                    selectedButton = selectedButton->down;
                 }
                 break;
             case directions::left:
+                if(selectedButton->left != NULL){
+                    selectedButton = selectedButton->left;
+                }
                 break;
             case directions::right:
+                if(selectedButton->right != NULL){
+                    selectedButton = selectedButton->right;
+                }
                 break;
             default:
                 break;
             }
+            tmp = dynamic_cast<button*>(selectedButton->oggetto);
+            tmp->toggleSelected();
         }
         
         void checkState(){
@@ -464,8 +467,8 @@ class gameController : public object{
 
 gameController gameManager;
 
-void run(scene& scena);
-void intro(scene& scena);
+void run(scene* scena);
+void intro(scene* scena);
 
 string alphabet[26][letterLines] = {
     /* a */ {" █████ ", "██   ██", "███████", "██   ██", "██   ██"},
@@ -504,8 +507,8 @@ int main(){
         SetConsoleOutputCP(CP_UTF8);
     #endif
 
-    scene scena1 = scene("prova");
-    gameManager.setPrincipalScene(scena1);
+    scene* scena1 = new scene("prova");
+    gameManager.setPrincipalScene(*scena1);
 
     run(scena1);
 
@@ -514,12 +517,12 @@ int main(){
     return 0;
 }
 
-void run(scene& scena){
+void run(scene* scena){
     intro(scena);
 }
 
 
-void intro(scene& scena){
+void intro(scene* scena){
     drawLine();
     for(int i = 0; i < screenHeight; i++){
         cout << "|" << setfill(' ') << setw(screenLenght) << "|" << endl;
@@ -536,10 +539,10 @@ void intro(scene& scena){
     gameManager.addButton(terzo, coordinates(1,3));
     gameManager.addButton(quarto, coordinates(1,4));
 
-    scena.addObjectToObjectList(primo);
-    scena.addObjectToObjectList(secondo);
-    scena.addObjectToObjectList(terzo);
-    scena.addObjectToObjectList(quarto);
+    scena->addObjectToObjectList(primo);
+    scena->addObjectToObjectList(secondo);
+    scena->addObjectToObjectList(terzo);
+    scena->addObjectToObjectList(quarto);
 
     writeTitle("the game");
     setFixedPointer(position_end);
@@ -703,17 +706,16 @@ void menuInputManager(){
             int arrow = _getch();
             switch (arrow){
                 case 72 :
-                    gameManager.changeSelectedButton(up);
+                    gameManager.changeSelectedButton(directions::up);
                     break;
                 case 80 :
-                    gameManager.changeSelectedButton(down);
+                    gameManager.changeSelectedButton(directions::down);
                     break;
                 case 75 :
-                    gameManager.changeSelectedButton(up);
+                    gameManager.changeSelectedButton(directions::left);
                     break;
                 case 77 :
-                    gameManager.getPrincipalScene().destroyScene();
-                    //gameManager.changeSelectedButton(down);
+                    gameManager.changeSelectedButton(directions::right);
                     break;
             }
             continue;
@@ -721,19 +723,19 @@ void menuInputManager(){
 
         switch(input){
         case 'w' :
-            gameManager.changeSelectedButton(up);
+            gameManager.changeSelectedButton(directions::up);
             break;
         case 'a' :
-            gameManager.changeSelectedButton(up);
+            gameManager.changeSelectedButton(directions::left);
             break;
         case 's' :
-            gameManager.changeSelectedButton(down);
+            gameManager.changeSelectedButton(directions::down);
             break;
         case 'd' :
-            gameManager.changeSelectedButton(down);
+            gameManager.changeSelectedButton(directions::right);
             break;    
         case '\r' :
-            gameManager.onButtonClicked(gameManager.getSelectedButton());
+            gameManager.onButtonClicked(gameManager.getSelectedButtonType());
             break;
         case 27 :
             cout << "exit" << endl;

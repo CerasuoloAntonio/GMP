@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cstdlib> // per il random
+#include <cstdlib> // per il random e per exit()
 #include <iomanip>
 #include <fstream>
 #include <conio.h>
@@ -71,6 +71,7 @@ void worldInputManager();
 void clearLine(int line);
 int calculateAlignmentX(enum alignment position, int textLength);
 int calculateAlignmentY(enum alignment position, int textLength);
+void drawEmptyScene();
 
 class object{
     public :
@@ -112,6 +113,36 @@ class coordinates : public object{
         int get_y(){return y;}
 };
 
+class layer : public object{
+    private :
+        static const int mapheight = 29;
+        string layer[mapheight];
+
+    public : 
+        string getLayerLine(int line){return layer[line];}
+
+        void setLayer(int layerId){
+            int currentMap = 0;
+            int i = 0;
+            string temp;
+            ifstream inputFile("mappe.txt");
+            while(getline(inputFile, temp)){ 
+                if(temp == ";"){
+                    currentMap++;
+                    continue;
+                }
+                if(currentMap == layerId){
+                    if(i < mapheight){ 
+                    layer[i] = temp;
+                    i++;
+                    }
+                }
+            }
+            inputFile.close();
+        }
+
+};
+
 struct node4d{
     object* oggetto;
     coordinates posizione;
@@ -129,56 +160,40 @@ struct pointerlist4d{
 class scene : public object{
     private : 
         node* sceneList;
-        const static int mapHeight = 29;
-        string sceneName;
-        string map[mapHeight];
         string temp;
+        layer* layer_1 = new layer();
+        int mapHeight = 29;
         
     public :
         
 
-        scene(string name = "scena") : sceneName(name){
+        scene(){
             initializeObjectList();
         }
 
         void draw(){
-            for(int n = 0; n < mapHeight; n++){
-                cout << map[n] << endl;
+            for(int i = 0; i < mapHeight; i++){
+                cout << layer_1->getLayerLine(i) << endl;
             }
         }
 
         void deleteScene(){
             setFixedPointer(position_begin);
-            for(int i = 0; i < screenHeight + 2; i++ ){
+            for(int i = 0; i < mapHeight; i++ ){
                 cout << setfill(' ') << setw(screenLenght + 1) << " " << endl;
             }
             setFixedPointer(position_begin);
         }
 
         void createMap(int mapId){
-            int currentMap = 0;
-            int i = 0;
-            ifstream inputFile("mappe.txt");
-            while(getline(inputFile, temp)){ 
-                if(temp == ";"){
-                    currentMap++;
-                    continue;
-                }
-                if(currentMap == mapId){
-                    if(i < mapHeight){ 
-                    map[i] = temp;
-                    i++;
-                    }
-                }
-            }
-            inputFile.close();
+            layer_1->setLayer(mapId);
+            addObjectToObjectList(layer_1);
         }
 
         void initializeObjectList(){
             sceneList = nullptr;
         }
 
-        //la lista aggiunge gli elementi in cima così quando vengono distrutti 
         void addObjectToObjectList(object* nuovo){
             node* nodo = new node;
             nodo->ogetto = nuovo;
@@ -314,6 +329,7 @@ class gameController : public object{
     public:        
 
         void setPrincipalScene(scene& scena){scenaPrincipale = &scena;}
+        void setGameState(gameState newState){ state = newState; checkState();}
 
         scene& getPrincipalScene(){return *scenaPrincipale;} 
         
@@ -457,11 +473,15 @@ class gameController : public object{
         void onButtonClicked(enum buttonTypes type){
             switch (type){
                 case newGameButton:
-                    getPrincipalScene().deleteScene();
-                    getPrincipalScene().createMap(1);
-                    getPrincipalScene().draw();
+                    newScene(1);
+                    setGameState(world);
                     break;
-            
+                case continueButton :
+                    break;
+                case exitButton : 
+                    break;
+                case optionButton :
+                    break;
             default:
                 break;
             }
@@ -508,6 +528,14 @@ class gameController : public object{
             }
             
         }
+
+        void newScene(int sceneID){
+            getPrincipalScene().deleteScene();
+            //scenaPrincipale = new ::scene();
+            getPrincipalScene().createMap(sceneID);
+            getPrincipalScene().draw();
+        }
+
 };
 
 gameController gameManager;
@@ -552,7 +580,7 @@ int main(){
         SetConsoleOutputCP(CP_UTF8);
     #endif
 
-    scene* scena1 = new scene("prova");
+    scene* scena1 = new scene();
     gameManager.setPrincipalScene(*scena1);
 
     run(scena1);
@@ -568,11 +596,8 @@ void run(scene* scena){
 
 
 void intro(scene* scena){
-    drawLine();
-    for(int i = 0; i < screenHeight; i++){
-        cout << "|" << setfill(' ') << setw(screenLenght) << "|" << endl;
-    }
-    drawLine();
+
+    drawEmptyScene();
 
     button* primo = new button("New Game", newGameButton, align_center, 20, true);
     button* secondo = new button("Continue", continueButton, align_center, 21, true);
@@ -731,18 +756,6 @@ int calculateAlignmentY(enum alignment position, int textLength){
     
 }
 
-/*
-Su → 72
-
-Giù → 80
-
-Sinistra → 75
-
-Destra → 77
-
-        
-*/
-
 void menuInputManager(){
     
     while(true){
@@ -750,16 +763,16 @@ void menuInputManager(){
         if(input == 0 || input == 224){ //l'input deve essere controllato 2 volte nelle frecce direzionali perchè restituiscono 2 interi
             int arrow = _getch();
             switch (arrow){
-                case 72 :
+                case 72 : //freccia su
                     gameManager.changeSelectedButton(directions::up);
                     break;
-                case 80 :
+                case 80 : //freccia giù
                     gameManager.changeSelectedButton(directions::down);
-                    break;
-                case 75 :
+                    break; 
+                case 75 : //freccia sinistra
                     gameManager.changeSelectedButton(directions::left);
                     break;
-                case 77 :
+                case 77 : //freccia destra
                     gameManager.changeSelectedButton(directions::right);
                     break;
             }
@@ -783,7 +796,7 @@ void menuInputManager(){
             gameManager.onButtonClicked(gameManager.getSelectedButtonType());
             break;
         case 27 :
-            cout << "exit" << endl;
+            exit(0);
             break;
         default:
             return;
@@ -810,7 +823,7 @@ void combatInputManager(){
         case '\r' :
             
             break;
-        case '\033' :
+        case 27 :
             
             break; 
         default:
@@ -834,7 +847,7 @@ void worldInputManager(){
             break;    
         case '\r' :
             break;
-        case '\033' :
+        case 27 :
             break; 
         default:
             return;
@@ -846,4 +859,12 @@ void worldInputManager(){
 void clearLine(int line){
     cout << "\033[" <<line << ";1H" << "|" << setfill(' ') << setw(screenLenght) << "|";
     setFixedPointer(position_end);
+}
+
+void drawEmptyScene(){
+    drawLine();
+    for(int i = 0; i < screenHeight; i++){
+        cout << "|" << setfill(' ') << setw(screenLenght) << "|" << endl;
+    }
+    drawLine();
 }

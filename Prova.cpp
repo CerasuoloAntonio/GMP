@@ -157,15 +157,83 @@ struct pointerlist4d{
     pointerlist4d* next;
 };
 
+class entity : public object{
+    
+
+    private :
+        const int minHealth = 0;
+
+        int attack;
+        int maxHealth;
+
+    public :
+        int health;
+        int defense;
+
+    entity(){
+        maxHealth = 100;
+        health = maxHealth;
+        attack = 10;
+    }
+
+    void attackEnemy(entity &enemy){
+        enemy.health -= attack;
+    }
+};
+
+class player : public entity{
+    private :
+        coordinates position;
+        char sprite = '@';
+    public :
+
+        void setPosition(coordinates newPosition){position = newPosition;}
+
+        coordinates getPosition(){return position;}
+        char getPlayerSprite(){return sprite;}
+
+        void moveLeft(){
+            if(position.get_x() > 2){
+                position.set_x(position.get_x() - 1);
+            }
+        }
+        void moveRight(){
+            if(position.get_x()  < screenLenght){
+                position.set_x(position.get_x() + 1);
+            }
+        }
+        void moveUp(){
+            if(position.get_y() > 2){
+                position.set_y(position.get_y() - 1);
+            }
+        }
+        void moveDown(){
+            if(position.get_y() < screenHeight + 1){
+                position.set_y(position.get_y() + 1);
+            }
+        }
+};
+
+class monster : public entity{
+
+};
+
 class scene : public object{
     private : 
         node* sceneList;
         string temp;
         layer* layer_1 = new layer();
         int mapHeight = 29;
+        player* playerController = nullptr;
         
     public :
+
+        void setPlayer(player* newPlayer){playerController = newPlayer;}
         
+        void movePlayerToLeft(){playerController->moveLeft();deleteScene();draw();}
+        void movePlayerToRight(){playerController->moveRight();deleteScene();draw();}
+        void movePlayerUp(){playerController->moveUp();deleteScene();draw();}
+        void movePlayerDown(){playerController->moveDown();deleteScene();draw();}
 
         scene(){
             initializeObjectList();
@@ -175,6 +243,8 @@ class scene : public object{
             for(int i = 0; i < mapHeight; i++){
                 cout << layer_1->getLayerLine(i) << endl;
             }
+            coordinates playerPosition = playerController->getPosition();
+            cout << "\033[" << playerPosition.get_y() << ";" << playerPosition.get_x() << "H" << playerController->getPlayerSprite();
         }
 
         void deleteScene(){
@@ -285,38 +355,7 @@ class button : public interactable {
 
 }; 
 
-class entity : public object{
-    
 
-    private :
-        const int minHealth = 0;
-
-        int attack;
-        int maxHealth;
-
-    public :
-        int health;
-        int defense;
-
-    entity(){
-        maxHealth = 100;
-        health = maxHealth;
-        attack = 10;
-    }
-
-    void attackEnemy(entity &enemy){
-        enemy.health -= attack;
-    }
-};
-
-class player : public entity{
-
-
-};
-
-class monster : public entity{
-
-};
 
 class gameController : public object{
     private:
@@ -472,10 +511,11 @@ class gameController : public object{
         
         void onButtonClicked(enum buttonTypes type){
             switch (type){
-                case newGameButton:
-                    newScene(1);
+                case newGameButton:{
+                    newSceneWithNewPlayer(1);
                     setGameState(world);
                     break;
+                    }
                 case continueButton :
                     break;
                 case exitButton : 
@@ -531,8 +571,17 @@ class gameController : public object{
 
         void newScene(int sceneID){
             getPrincipalScene().deleteScene();
-            //scenaPrincipale = new ::scene();
             getPrincipalScene().createMap(sceneID);
+            getPrincipalScene().draw();
+        }
+
+        void newSceneWithNewPlayer(int sceneID){
+            getPrincipalScene().deleteScene();
+            getPrincipalScene().createMap(sceneID);
+            player* hero = new player();
+            hero->setPosition(coordinates(40, 20));
+            scenaPrincipale->setPlayer(hero);
+            scenaPrincipale->addObjectToObjectList(hero);
             getPrincipalScene().draw();
         }
 
@@ -810,7 +859,6 @@ void combatInputManager(){
         char input = _getch();
         switch(input){
         case 'w' :
-            
             break;
         case 'a' :
             break;
@@ -835,20 +883,45 @@ void combatInputManager(){
 
 void worldInputManager(){
     while(true){
-        char input = _getch();
+        int input = _getch();
+        if(input == 0 || input == 224){ //l'input deve essere controllato 2 volte nelle frecce direzionali perchè restituiscono 2 interi
+            int arrow = _getch();
+            switch (arrow){
+                case 72 : //freccia su
+                    
+                    break;
+                case 80 : //freccia giù
+                    
+                    break; 
+                case 75 : //freccia sinistra
+                    
+                    break;
+                case 77 : //freccia destra
+                    
+                    break;
+            }
+            continue;
+        }
+
         switch(input){
         case 'w' :
+            gameManager.getPrincipalScene().movePlayerUp();
             break;
         case 'a' :
+            gameManager.getPrincipalScene().movePlayerToLeft();
             break;
         case 's' :
+            gameManager.getPrincipalScene().movePlayerDown();
             break;
         case 'd' :
+            gameManager.getPrincipalScene().movePlayerToRight();
             break;    
         case '\r' :
+            
             break;
         case 27 :
-            break; 
+            exit(0);
+            break;
         default:
             return;
         }

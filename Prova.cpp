@@ -235,6 +235,8 @@ class scene : public object{
     public :
 
         void setPlayer(player* newPlayer){playerController = newPlayer;}
+
+        layer* getFirstLayer(){return layer_1;}
         
         //da cancellare
         void movePlayerToLeft(){playerController->moveLeft();deleteScene();draw();}  
@@ -377,7 +379,6 @@ class button : public interactable {
 
         button(string text = "nuovo bottone",enum buttonTypes type = generic,enum alignment alignment = align_left, int yPosition = 1 , bool shown = false, char indicator = '<' , bool selected = false): buttonType(type), interactable(text,selected,shown, indicator){
             pos = coordinates (alignment,yPosition, text.length());
-            //screenpos = coordinates(calculateAlignmentX(alignment, text.length()),yPosition);
             toggleSelectedIcon();
             if(isShown){
                 display(pos);
@@ -396,6 +397,13 @@ class button : public interactable {
             }
             else{
                 cout << "\033[" << pos.get_y() << ";" << xPos << "H" << " ";
+            }
+        }
+
+        void toggleshow(){
+            isShown = !isShown;
+            if(isShown){
+                display(pos);
             }
         }
 
@@ -435,11 +443,13 @@ class gameController : public object{
             isMenuActive = false;
         }
 
-        void addButton(button* newButton, coordinates position){
+        void addButton(button* newButton, coordinates position, bool drawLater){
             node4d* nodo = new node4d;
             if(buttonList == nullptr){
+                if(!drawLater){
+                    newButton->toggleSelected();
+                }
                 
-                newButton->toggleSelected();
                 selectedButton = nodo;
 
                 nodo->oggetto = newButton;
@@ -513,7 +523,7 @@ class gameController : public object{
             return pointerNode;
         }
         
-        void changeSelectedButton(enum directions direction){ //da cambiare il modo di ridisegnare il bottone, dal ridisegnare tutta la riga al cancellare e riscrivere solo il simbolo di selezione
+        void changeSelectedButton(enum directions direction){ 
             button* tmp = dynamic_cast<button*>(selectedButton->oggetto);
             tmp->toggleSelected();
             switch (direction)
@@ -565,6 +575,7 @@ class gameController : public object{
         void onButtonClicked(enum buttonTypes type){
             switch (type){
                 case newGameButton:{
+                    deleteButtonList();
                     newSceneWithNewPlayer(1);
                     setGameState(world);
                     
@@ -640,42 +651,72 @@ class gameController : public object{
             getPrincipalScene().draw();
         }
 
-        void toggleMenu(){         
+        void toggleMenu(){  
+            int xButtonPos = 105;
+            int xMenuPos = 103;       
             if(!isMenuActive && state == world){
-                buttonList = nullptr;
+                
+                isMenuActive = !isMenuActive;
+
+                int n = 0;
+
+                button* inventory = new button("Inventory",coordinates(105, 4),inventoryButton,false);
+                button* equipment = new button("Equip",coordinates(105, 6),equipButton,false);
+                button* classB = new button("Class",coordinates(105, 8),classButton,false);
+                button* save = new button("Save",coordinates(105, 10),saveButton,false);
+                button* exit = new button("Exit",coordinates(105, 12),exitButton,false);
+
+                button * tmp[5] = {inventory,equipment,classB,save,exit};
+
+                addButton(inventory,coordinates(1,1),true);
+                addButton(equipment,coordinates(1,2),true);
+                addButton(classB,coordinates(1,3),true);
+                addButton(save,coordinates(1,4),true);
+                addButton(exit,coordinates(1,5),true);
+
                 cout << "\033[2;103H" << setfill('_') << setw(15) << "_" << setfill(' ');
-                cout << "\033[3;103H|" << setw(14) << "|" ;
-                cout << "\033[4;103H|" << setw(14) << "|" ;
-                button* inventory = new button("Inventory",coordinates(105, 4),inventoryButton,true);
-                cout << "\033[5;103H|" << setw(14) << "|" ;
-                cout << "\033[6;103H|" << setw(14) << "|" ;
-                button* equipment = new button("Equip",coordinates(105, 6),equipButton,true);
-                cout << "\033[7;103H|" << setw(14) << "|" ;
-                cout << "\033[8;103H|" << setw(14) << "|" ;
-                button* classB = new button("Class",coordinates(105, 8),classButton,true);
-                cout << "\033[9;103H|" << setw(14) << "|" ;
-                cout << "\033[10;103H|" << setw(14) << "|" ;
-                button* save = new button("Save",coordinates(105, 10),saveButton,true);
-                cout << "\033[11;103H|" << setw(14) << "|" ;
-                cout << "\033[12;103H|" << setw(14) << "|" ;
-                button* exit = new button("Exit",coordinates(105, 12),exitButton,true);
-                cout << "\033[13;103H|" << setw(14) << "|" ;
+
+                for(int i = 3; i != 14; i++){
+                    cout << "\033[" << i << ";" << xMenuPos << "H|" << setw(14) << "|" ;
+                    if(i%2==0){
+                        tmp[n]->toggleshow();
+                        
+                        if(n == 0){
+                            tmp[n]->toggleSelected();
+                        }
+                        n++;
+                    }
+                }
+
                 cout << "\033[14;103H" << setfill('_') << setw(15) << "_" << setfill(' ');
+
                 setFixedPointer(position_end);
-                addButton(inventory,coordinates(1,1));
-                addButton(equipment,coordinates(1,2));
-                addButton(classB,coordinates(1,3));
-                addButton(save,coordinates(1,4));
-                addButton(exit,coordinates(1,5));
+                
                 setGameState(menu);
             }
             else{
-                getPrincipalScene().deleteScene();
-                getPrincipalScene().draw();
+                isMenuActive = !isMenuActive;
+                deleteButtonList();
+
+                layer* tmp = getPrincipalScene().getFirstLayer();
+                string line;
+
+                for(int i = 2; i != 15; i++){
+                    line = tmp->getLayerLine(i-1);
+                    for(int n = xMenuPos; n < xMenuPos + 15; n++){
+                        cout << "\033[" << i << ";" << n << "H" << line[n + 1];
+                    }
+                }
+
+                setFixedPointer(position_end);
+
                 setGameState(world);
             }
         }
 
+        void deleteButtonList(){
+            buttonList = nullptr;
+        }
 };
 
 gameController gameManager;
@@ -744,10 +785,10 @@ void intro(scene* scena){
     button* terzo = new button("Options", optionButton, align_center, 22, true);
     button* quarto = new button("Exit", exitButton, align_center, 23, true);
 
-    gameManager.addButton(primo, coordinates(1,1));
-    gameManager.addButton(secondo, coordinates(1,2));
-    gameManager.addButton(terzo, coordinates(1,3));
-    gameManager.addButton(quarto, coordinates(1,4));
+    gameManager.addButton(primo, coordinates(1,1),false);
+    gameManager.addButton(secondo, coordinates(1,2),false);
+    gameManager.addButton(terzo, coordinates(1,3),false);
+    gameManager.addButton(quarto, coordinates(1,4),false);
 
     scena->addObjectToObjectList(primo);
     scena->addObjectToObjectList(secondo);

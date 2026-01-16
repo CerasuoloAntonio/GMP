@@ -49,7 +49,11 @@ enum buttonTypes{
     continueButton,
     exitButton,
     generic,
-    optionButton
+    optionButton,
+    inventoryButton,
+    classButton,
+    saveButton,
+    equipButton
 };
 
 const int screenHeight = 27;
@@ -323,6 +327,8 @@ class scene : public object{
 
             delete this;
         }
+
+        
 };
 
 class interactable : public object{
@@ -333,11 +339,11 @@ class interactable : public object{
         string content;
         string Basecontent;
         bool isShown;
-        coordinates pos;
+        coordinates pos, screenpos;
 
     public :
 
-        interactable(string text = "Nuovo interagibile", bool selected = false, bool shown = false, char indicator = '<') : content(text), Basecontent(text),isSelected(selected), isShown(shown), selectedIndicator(indicator){
+        interactable(string text = "Nuovo interagibile", bool selected = false, bool shown = false, char indicator = '<', coordinates newScreenPos = coordinates(1,1)) : content(text), Basecontent(text),isSelected(selected), isShown(shown), selectedIndicator(indicator), screenpos(newScreenPos){
 
         }   
 
@@ -369,6 +375,7 @@ class button : public interactable {
 
         button(string text = "nuovo bottone",enum buttonTypes type = generic,enum alignment alignment = align_left, int yPosition = 1 , bool shown = false, char indicator = '<' , bool selected = false): buttonType(type), interactable(text,selected,shown, indicator){
             pos = coordinates (alignment,yPosition, text.length());
+            screenpos = coordinates(calculateAlignmentX(alignment, text.length()),yPosition);
             toggleSelectedIcon();
             if(isShown){
                 display(pos);
@@ -378,16 +385,15 @@ class button : public interactable {
         void toggleSelected(){
             isSelected = !isSelected;
             toggleSelectedIcon();
-            clearLine(pos.get_y());
-            display(this->pos);
         }
 
         void toggleSelectedIcon(){
+            int xPos = screenpos.get_x() + content.length() + 1;
             if(isSelected){
-                content = Basecontent + " " + selectedIndicator;
+                cout << "\033[" << screenpos.get_y() << ";" << xPos << "H" << selectedIndicator;
             }
             else{
-                content = Basecontent;
+                cout << "\033[" << screenpos.get_y() << ";" << xPos << "H" << " ";
             }
         }
 
@@ -397,12 +403,15 @@ class button : public interactable {
 
 class gameController : public object{
     private:
+
         int button_count;
+        bool isMenuActive;
         node4d* buttonList = nullptr;
         pointerlist4d* buttonPointers = nullptr;
         gameState state;
         node4d* selectedButton;
         scene* scenaPrincipale;
+
     public:        
 
         void setPrincipalScene(scene& scena){scenaPrincipale = &scena;}
@@ -421,6 +430,7 @@ class gameController : public object{
         gameController(){
             button_count = 0;
             state = menu;
+            isMenuActive = false;
         }
 
         void addButton(button* newButton, coordinates position){
@@ -500,8 +510,8 @@ class gameController : public object{
             }
             return pointerNode;
         }
-
-        void changeSelectedButton(enum directions direction){
+        
+        void changeSelectedButton(enum directions direction){ //da cambiare il modo di ridisegnare il bottone, dal ridisegnare tutta la riga al cancellare e riscrivere solo il simbolo di selezione
             button* tmp = dynamic_cast<button*>(selectedButton->oggetto);
             tmp->toggleSelected();
             switch (direction)
@@ -621,6 +631,14 @@ class gameController : public object{
             scenaPrincipale->setPlayer(hero);
             scenaPrincipale->addObjectToObjectList(hero);
             getPrincipalScene().draw();
+        }
+
+        void toggleMenu(){
+            if(!isMenuActive && state == world){
+                cout << "\033[2;103H" << setfill('_') << setw(15) << "_" << setfill(' ');
+                cout << "\033[3;103H|" << setw(14) << "|" ;
+                setFixedPointer(position_end);
+            }
         }
 
 };
@@ -958,7 +976,7 @@ void worldInputManager(){
             
             break;
         case 27 :
-            exit(0);
+            gameManager.toggleMenu();
             break;
         default:
             return;

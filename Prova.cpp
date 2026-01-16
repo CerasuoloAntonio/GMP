@@ -39,6 +39,7 @@ enum directions{
 };
 
 enum gameState{
+    mainMenu,
     menu,
     world,
     combat
@@ -69,6 +70,7 @@ void writeTitle(string phrase);
 void drawLetter(int n);
 void printAlphabet();
 void setFixedPointer(enum alignment position);
+void mainMenuInputManager();
 void menuInputManager();
 void combatInputManager();
 void worldInputManager();
@@ -339,11 +341,11 @@ class interactable : public object{
         string content;
         string Basecontent;
         bool isShown;
-        coordinates pos, screenpos;
+        coordinates pos;
 
     public :
 
-        interactable(string text = "Nuovo interagibile", bool selected = false, bool shown = false, char indicator = '<', coordinates newScreenPos = coordinates(1,1)) : content(text), Basecontent(text),isSelected(selected), isShown(shown), selectedIndicator(indicator), screenpos(newScreenPos){
+        interactable(string text = "Nuovo interagibile", bool selected = false, bool shown = false, char indicator = '<') : content(text), Basecontent(text),isSelected(selected), isShown(shown), selectedIndicator(indicator){
 
         }   
 
@@ -375,7 +377,7 @@ class button : public interactable {
 
         button(string text = "nuovo bottone",enum buttonTypes type = generic,enum alignment alignment = align_left, int yPosition = 1 , bool shown = false, char indicator = '<' , bool selected = false): buttonType(type), interactable(text,selected,shown, indicator){
             pos = coordinates (alignment,yPosition, text.length());
-            screenpos = coordinates(calculateAlignmentX(alignment, text.length()),yPosition);
+            //screenpos = coordinates(calculateAlignmentX(alignment, text.length()),yPosition);
             toggleSelectedIcon();
             if(isShown){
                 display(pos);
@@ -388,12 +390,12 @@ class button : public interactable {
         }
 
         void toggleSelectedIcon(){
-            int xPos = screenpos.get_x() + content.length() + 1;
+            int xPos = pos.get_x() + content.length() + 1;
             if(isSelected){
-                cout << "\033[" << screenpos.get_y() << ";" << xPos << "H" << selectedIndicator;
+                cout << "\033[" << pos.get_y() << ";" << xPos << "H" << selectedIndicator;
             }
             else{
-                cout << "\033[" << screenpos.get_y() << ";" << xPos << "H" << " ";
+                cout << "\033[" << pos.get_y() << ";" << xPos << "H" << " ";
             }
         }
 
@@ -429,7 +431,7 @@ class gameController : public object{
     
         gameController(){
             button_count = 0;
-            state = menu;
+            state = mainMenu;
             isMenuActive = false;
         }
 
@@ -545,6 +547,9 @@ class gameController : public object{
         
         void checkState(){
             switch(state){
+                case mainMenu :
+                    mainMenuInputManager();
+                    break;
                 case menu :
                     menuInputManager();
                     break;
@@ -562,11 +567,13 @@ class gameController : public object{
                 case newGameButton:{
                     newSceneWithNewPlayer(1);
                     setGameState(world);
+                    
                     break;
                     }
                 case continueButton :
                     break;
                 case exitButton : 
+                    exit(0);
                     break;
                 case optionButton :
                     break;
@@ -633,11 +640,39 @@ class gameController : public object{
             getPrincipalScene().draw();
         }
 
-        void toggleMenu(){
+        void toggleMenu(){         
             if(!isMenuActive && state == world){
+                buttonList = nullptr;
                 cout << "\033[2;103H" << setfill('_') << setw(15) << "_" << setfill(' ');
                 cout << "\033[3;103H|" << setw(14) << "|" ;
+                cout << "\033[4;103H|" << setw(14) << "|" ;
+                button* inventory = new button("Inventory",coordinates(105, 4),inventoryButton,true);
+                cout << "\033[5;103H|" << setw(14) << "|" ;
+                cout << "\033[6;103H|" << setw(14) << "|" ;
+                button* equipment = new button("Equip",coordinates(105, 6),equipButton,true);
+                cout << "\033[7;103H|" << setw(14) << "|" ;
+                cout << "\033[8;103H|" << setw(14) << "|" ;
+                button* classB = new button("Class",coordinates(105, 8),classButton,true);
+                cout << "\033[9;103H|" << setw(14) << "|" ;
+                cout << "\033[10;103H|" << setw(14) << "|" ;
+                button* save = new button("Save",coordinates(105, 10),saveButton,true);
+                cout << "\033[11;103H|" << setw(14) << "|" ;
+                cout << "\033[12;103H|" << setw(14) << "|" ;
+                button* exit = new button("Exit",coordinates(105, 12),exitButton,true);
+                cout << "\033[13;103H|" << setw(14) << "|" ;
+                cout << "\033[14;103H" << setfill('_') << setw(15) << "_" << setfill(' ');
                 setFixedPointer(position_end);
+                addButton(inventory,coordinates(1,1));
+                addButton(equipment,coordinates(1,2));
+                addButton(classB,coordinates(1,3));
+                addButton(save,coordinates(1,4));
+                addButton(exit,coordinates(1,5));
+                setGameState(menu);
+            }
+            else{
+                getPrincipalScene().deleteScene();
+                getPrincipalScene().draw();
+                setGameState(world);
             }
         }
 
@@ -861,7 +896,7 @@ int calculateAlignmentY(enum alignment position, int textLength){
     
 }
 
-void menuInputManager(){
+void mainMenuInputManager(){
     
     while(true){
         int input = _getch();
@@ -902,6 +937,55 @@ void menuInputManager(){
             break;
         case 27 :
             exit(0);
+            break;
+        default:
+            return;
+        }
+    } 
+    setFixedPointer(position_end);
+}
+
+void menuInputManager(){
+    
+    while(true){
+        int input = _getch();
+        if(input == 0 || input == 224){ //l'input deve essere controllato 2 volte nelle frecce direzionali perchè restituiscono 2 interi
+            int arrow = _getch();
+            switch (arrow){
+                case 72 : //freccia su
+                    gameManager.changeSelectedButton(directions::up);
+                    break;
+                case 80 : //freccia giù
+                    gameManager.changeSelectedButton(directions::down);
+                    break; 
+                case 75 : //freccia sinistra
+                    gameManager.changeSelectedButton(directions::left);
+                    break;
+                case 77 : //freccia destra
+                    gameManager.changeSelectedButton(directions::right);
+                    break;
+            }
+            continue;
+        }
+
+        switch(input){
+        case 'w' :
+            gameManager.changeSelectedButton(directions::up);
+            break;
+        case 'a' :
+            gameManager.changeSelectedButton(directions::left);
+            break;
+        case 's' :
+            gameManager.changeSelectedButton(directions::down);
+            break;
+        case 'd' :
+            gameManager.changeSelectedButton(directions::right);
+            break;    
+        case '\r' :
+            gameManager.onButtonClicked(gameManager.getSelectedButtonType());
+            break;
+        case 27 :
+            gameManager.toggleMenu();
             break;
         default:
             return;

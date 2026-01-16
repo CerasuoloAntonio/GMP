@@ -230,14 +230,52 @@ class scene : public object{
 
         void setPlayer(player* newPlayer){playerController = newPlayer;}
         
-        void movePlayerToLeft(){playerController->moveLeft();deleteScene();draw();}
+        //da cancellare
+        void movePlayerToLeft(){playerController->moveLeft();deleteScene();draw();}  
         void movePlayerToRight(){playerController->moveRight();deleteScene();draw();}
         void movePlayerUp(){playerController->moveUp();deleteScene();draw();}
         void movePlayerDown(){playerController->moveDown();deleteScene();draw();}
 
+        void moveplayer(directions direction){
+            
+            int x = playerController->getPosition().get_x();
+            int y = playerController->getPosition().get_y();
+            char line = layer_1->getLayerLine(y - 1)[x + 1];
+            switch (direction){
+            case directions::up: 
+                if(y > 2){
+                    cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y - 1 << ";" << x << "H" << playerController->getPlayerSprite();
+                    playerController->moveUp();
+                }
+                break;
+            case directions::down:
+                if(y < screenHeight + 1){
+                        cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y + 1 << ";" << x << "H" << playerController->getPlayerSprite();
+                        playerController->moveDown();
+                    }
+                break;
+            case directions::left:
+                if(x > 2){
+                    cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y  << ";" << x - 1 << "H" << playerController->getPlayerSprite();
+                    playerController->moveLeft();
+                }
+                break;
+            case directions::right:
+                if(x < screenLenght){
+                    cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y << ";" << x + 1 << "H" << playerController->getPlayerSprite();
+                    playerController->moveRight();
+                }
+                break;
+            default:
+                break;
+            }
+        }
+
         scene(){
             initializeObjectList();
         }
+
+        player* getPlayer(){return playerController;}
 
         void draw(){
             for(int i = 0; i < mapHeight; i++){
@@ -888,16 +926,16 @@ void worldInputManager(){
             int arrow = _getch();
             switch (arrow){
                 case 72 : //freccia su
-                    
+                    gameManager.getPrincipalScene().moveplayer(directions::up);
                     break;
                 case 80 : //freccia giù
-                    
+                    gameManager.getPrincipalScene().moveplayer(directions::down);
                     break; 
                 case 75 : //freccia sinistra
-                    
+                    gameManager.getPrincipalScene().moveplayer(directions::left);
                     break;
                 case 77 : //freccia destra
-                    
+                    gameManager.getPrincipalScene().moveplayer(directions::right);
                     break;
             }
             continue;

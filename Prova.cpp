@@ -165,16 +165,20 @@ struct pointerlist4d{
 
 class entity : public object{
     
-
-    private :
+    protected :
         const int minHealth = 0;
-
+        coordinates position;
+        char sprite = '@';
         int attack;
         int maxHealth;
 
     public :
         int health;
         int defense;
+
+    void setPosition(coordinates newPosition){position = newPosition;}
+    coordinates getPosition(){return position;}
+    char getEntitySprite(){return sprite;}
 
     entity(){
         maxHealth = 100;
@@ -189,14 +193,12 @@ class entity : public object{
 
 class player : public entity{
     private :
-        coordinates position;
-        char sprite = '@';
+        
     public :
 
-        void setPosition(coordinates newPosition){position = newPosition;}
-
-        coordinates getPosition(){return position;}
-        char getPlayerSprite(){return sprite;}
+        player(){
+            position = getPosition();
+        }
 
         void moveLeft(){
             if(position.get_x() > 2){
@@ -249,33 +251,35 @@ class scene : public object{
             int x = playerController->getPosition().get_x();
             int y = playerController->getPosition().get_y();
             char line = layer_1->getLayerLine(y - 1)[x + 1];
+            char sprite = playerController->getEntitySprite();
+
             switch (direction){
-            case directions::up: 
-                if(y > 2){
-                    cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y - 1 << ";" << x << "H" << playerController->getPlayerSprite();
-                    playerController->moveUp();
-                }
-                break;
-            case directions::down:
-                if(y < screenHeight + 1){
-                        cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y + 1 << ";" << x << "H" << playerController->getPlayerSprite();
-                        playerController->moveDown();
+                case directions::up: 
+                    if(y > 2 && !isColliding(playerController,directions::up)){
+                        cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y - 1 << ";" << x << "H" << sprite;
+                        playerController->moveUp();
                     }
-                break;
-            case directions::left:
-                if(x > 2){
-                    cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y  << ";" << x - 1 << "H" << playerController->getPlayerSprite();
-                    playerController->moveLeft();
-                }
-                break;
-            case directions::right:
-                if(x < screenLenght){
-                    cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y << ";" << x + 1 << "H" << playerController->getPlayerSprite();
-                    playerController->moveRight();
-                }
-                break;
-            default:
-                break;
+                    break;
+                case directions::down:
+                    if(y < screenHeight + 1 && !isColliding(playerController,directions::down)){
+                            cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y + 1 << ";" << x << "H" << sprite;
+                            playerController->moveDown();
+                        }
+                    break;
+                case directions::left:
+                    if(x > 2 && !isColliding(playerController,directions::left)){
+                        cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y  << ";" << x - 1 << "H" << sprite;
+                        playerController->moveLeft();
+                    }
+                    break;
+                case directions::right:
+                    if(x < screenLenght && !isColliding(playerController,directions::right)){
+                        cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y << ";" << x + 1 << "H" << sprite;
+                        playerController->moveRight();
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -283,14 +287,13 @@ class scene : public object{
             initializeObjectList();
         }
 
-        player* getPlayer(){return playerController;}
+        
 
         void draw(){
             for(int i = 0; i < mapHeight; i++){
                 cout << layer_1->getLayerLine(i) << endl;
             }
-            coordinates playerPosition = playerController->getPosition();
-            cout << "\033[" << playerPosition.get_y() << ";" << playerPosition.get_x() << "H" << playerController->getPlayerSprite();
+            drawPlayer();
         }
 
         void deleteScene(){
@@ -332,6 +335,62 @@ class scene : public object{
             delete this;
         }
 
+        bool isColliding(entity* collider, enum directions direction){
+
+            coordinates tmp = collider->getPosition();
+            int x = tmp.get_x();
+            int y = tmp.get_y();
+            bool result = false;
+
+            switch(direction){
+                case directions::up :
+                    if(collision(layer_1->getLayerLine(y - 2)[x + 1])){
+                        result = true;
+                    }
+                    break;
+                case directions::down :
+                    if(collision(layer_1->getLayerLine(y)[x + 1])){
+                        result = true;
+                    }
+                    break;
+                case directions::left :
+                    if(collision(layer_1->getLayerLine(y - 1)[x])){
+                        result = true;
+                    }
+                    break;
+                case directions::right :
+                    if(collision(layer_1->getLayerLine(y - 1)[x + 2])){
+                        result = true;
+                    }
+                    break;
+            }
+            return result;
+        }
+
+        bool collision(char collider){
+            switch (collider){
+            case 'T' :
+                return true;
+                break;
+            case '#' :
+                return true;
+                break;
+            case '~' :
+                return true;
+                break;
+            case '^' :
+                return true;
+                break;
+            default:
+                return false;
+                break;
+            }
+        }
+
+        void drawPlayer(){
+            coordinates playerPosition = playerController->getPosition();
+            cout << "\033[" << playerPosition.get_y() << ";" << playerPosition.get_x() << "H" << playerController->getEntitySprite();
+        }
         
 };
 
@@ -573,12 +632,11 @@ class gameController : public object{
         }
         
         void onButtonClicked(enum buttonTypes type){
+            deleteButtonList();
             switch (type){
                 case newGameButton:{
-                    deleteButtonList();
                     newSceneWithNewPlayer(1);
                     setGameState(world);
-                    
                     break;
                     }
                 case continueButton :
@@ -645,7 +703,7 @@ class gameController : public object{
             getPrincipalScene().deleteScene();
             getPrincipalScene().createMap(sceneID);
             player* hero = new player();
-            hero->setPosition(coordinates(40, 20));
+            hero->setPosition(coordinates(20, 10));
             scenaPrincipale->setPlayer(hero);
             scenaPrincipale->addObjectToObjectList(hero);
             getPrincipalScene().draw();
@@ -707,6 +765,8 @@ class gameController : public object{
                         cout << "\033[" << i << ";" << n << "H" << line[n + 1];
                     }
                 }
+
+                getPrincipalScene().drawPlayer();
 
                 setFixedPointer(position_end);
 

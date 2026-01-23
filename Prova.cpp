@@ -22,6 +22,9 @@
 
 using namespace std;
 
+class coordinates;
+class scene;
+
 enum alignment {
     align_center,
     align_left,
@@ -35,7 +38,11 @@ enum directions{
     up,
     down,
     left,
-    right
+    right,
+    nord,
+    sud,
+    est,
+    ovest
 };
 
 enum gameState{
@@ -75,11 +82,16 @@ void menuInputManager();
 void combatInputManager();
 void worldInputManager();
 void clearLine(int line);
-int calculateAlignmentX(enum alignment position, int textLength);
-int calculateAlignmentY(enum alignment position, int textLength);
 void drawEmptyScene();
 void saveState();
 void loadSavestate();
+void intro(scene* scena);
+
+int calculateAlignmentX(enum alignment position, int textLength);
+int calculateAlignmentY(enum alignment position, int textLength);
+
+coordinates getMapLink(int mapId, directions compassDirection);
+coordinates linkDirection(int id, directions cardinalDirection, string line);
 
 class object{
     public :
@@ -113,6 +125,10 @@ class coordinates : public object{
         coordinates(enum alignment position, int y_coordinate, int textLenght){
             y = y_coordinate; 
             x = calculateAlignmentX(position, textLenght);
+        }
+
+        void printCoordinates(){
+            cout << "x = " << x << " y = " << y << endl;
         }
 
         void set_x(int i){x=i;}
@@ -186,6 +202,7 @@ class entity : public object{
         maxHealth = 100;
         health = maxHealth;
         attack = 10;
+        position = coordinates(2,2);
     }
 
     void attackEnemy(entity &enemy){
@@ -236,7 +253,7 @@ class scene : public object{
         player* playerController = nullptr; 
 
         string temp;
-        coordinates playerPosition = coordinates (2,2);
+        coordinates playerPosition;
 
         int mapHeight = 29;
         int id;
@@ -312,12 +329,6 @@ class scene : public object{
             setFixedPointer(position_begin);
         }
 
-        /*void createMap(int mapId){
-            setId(mapId);
-            layer_1->setLayer(mapId);
-            addObjectToObjectList(layer_1);
-        }*/
-
         void initializeObjectList(){
             sceneList = nullptr;
         }
@@ -380,19 +391,14 @@ class scene : public object{
             switch (collider){
             case 'T' :
                 return true;
-                break;
             case '#' :
                 return true;
-                break;
             case '~' :
                 return true;
-                break;
             case '^' :
                 return true;
-                break;
             default:
                 return false;
-                break;
             }
         }
 
@@ -789,8 +795,7 @@ class gameController : public object{
 
 gameController gameManager;
 
-void run(scene* scena);
-void intro(scene* scena);
+
 
 string alphabet[26][letterLines] = {
     /* a */ {" █████ ", "██   ██", "███████", "██   ██", "██   ██"},
@@ -1197,8 +1202,7 @@ void saveState(){
     savefile.close();
 }
 
-void loadSavestate(){ // modificare e utilizzare le posizioni fisse per trovare i dati
-    //usare line.find(' ') per trovare direttamente il carattere senza dover scorrere tutta la stringa, restituisce un int
+void loadSavestate(){
     int i = 0;
     string word,line;
     int x,y;
@@ -1209,7 +1213,7 @@ void loadSavestate(){ // modificare e utilizzare le posizioni fisse per trovare 
         word.clear();
         switch(i){
             case 0:
-                    p1 = line.find('=');
+                    p1 = line.find('='); 
                     word = line[p1 +2];
                     sceneId = stoi(word);
                     break;
@@ -1217,16 +1221,14 @@ void loadSavestate(){ // modificare e utilizzare le posizioni fisse per trovare 
                 p1 = line.find('(');
                 p2 = line.find(';');
                 p3 = line.find(')');
-                for(int n = p1 + 1; n < p2; n++){
-                    word += line[n]; 
-                }
+
+                word = line.substr(p1 + 1, p2 - (p1 + 1));
 
                 x = stoi(word);
                 word.clear();
                 
-                for(int n = p2 + 1; n < p3; n++){
-                    word += line[n]; 
-                }
+                word = line.substr(p2 + 1, p3 - (p2 + 1));
+
                 y = stoi(word);
 
                 gameManager.getPrincipalScene().getPlayer()->setPosition(coordinates(x,y));
@@ -1240,4 +1242,55 @@ void loadSavestate(){ // modificare e utilizzare le posizioni fisse per trovare 
     gameManager.newScene(sceneId);
     gameManager.setGameState(world);
     savefile.close();
+}
+
+coordinates getMapLink(int mapId, directions compassDirection){
+    coordinates position;
+    string line;
+    int i = 0;
+    ifstream linkFile("MapData.txt");
+    while(getline(linkFile,line)){
+        if(i == mapId - 1){
+            position = linkDirection(mapId,compassDirection,line);
+        }
+        i++;
+    }
+    linkFile.close();
+    return position;
+}
+
+coordinates linkDirection(int id, directions cardinalDirection, string line){
+    coordinates result;
+    string word;
+    char direction;
+    int p1,p2,p3;
+    word.clear();
+    switch(cardinalDirection){
+        case directions::nord :
+            direction = 'N';
+            break;
+        case directions::sud :
+            direction = 'S';
+            break;
+        case directions::est :
+            direction = 'E';
+            break;
+        case directions::ovest :
+            direction = 'O';
+            break;
+        default :
+            return result;
+    }
+
+    p1 = line.find(direction);
+    p2 = line.find(',', p1);
+    p3 = line.find(')', p2);
+    
+    word = line.substr(p1 + 2, p2 - (p1 + 2));
+    result.set_x(stoi(word));
+
+    word = line.substr(p2 + 1, p3 - (p2 + 1));
+    result.set_y(stoi(word));
+
+    return result;
 }

@@ -78,6 +78,8 @@ void clearLine(int line);
 int calculateAlignmentX(enum alignment position, int textLength);
 int calculateAlignmentY(enum alignment position, int textLength);
 void drawEmptyScene();
+void saveState();
+void loadSavestate();
 
 class object{
     public :
@@ -228,23 +230,25 @@ class monster : public entity{
 
 class scene : public object{
     private : 
+
         node* sceneList;
-        string temp;
         layer* layer_1 = new layer();
+        player* playerController = nullptr; 
+
+        string temp;
+        coordinates playerPosition = coordinates (2,2);
+
         int mapHeight = 29;
-        player* playerController = nullptr;
+        int id;
         
     public :
 
         void setPlayer(player* newPlayer){playerController = newPlayer;}
+        void setId(int newId){id=newId;}
 
+        int getId(){return id;}
+        player* getPlayer(){return playerController;}
         layer* getFirstLayer(){return layer_1;}
-        
-        //da cancellare
-        void movePlayerToLeft(){playerController->moveLeft();deleteScene();draw();}  
-        void movePlayerToRight(){playerController->moveRight();deleteScene();draw();}
-        void movePlayerUp(){playerController->moveUp();deleteScene();draw();}
-        void movePlayerDown(){playerController->moveDown();deleteScene();draw();}
 
         void moveplayer(directions direction){
             
@@ -287,13 +291,17 @@ class scene : public object{
             initializeObjectList();
         }
 
-        
-
         void draw(){
             for(int i = 0; i < mapHeight; i++){
                 cout << layer_1->getLayerLine(i) << endl;
             }
             drawPlayer();
+        }
+    
+        void loadScene(int loadMapId){
+            setId(loadMapId);
+            layer_1->setLayer(loadMapId);
+            addObjectToObjectList(layer_1);
         }
 
         void deleteScene(){
@@ -304,10 +312,11 @@ class scene : public object{
             setFixedPointer(position_begin);
         }
 
-        void createMap(int mapId){
+        /*void createMap(int mapId){
+            setId(mapId);
             layer_1->setLayer(mapId);
             addObjectToObjectList(layer_1);
-        }
+        }*/
 
         void initializeObjectList(){
             sceneList = nullptr;
@@ -391,6 +400,7 @@ class scene : public object{
             coordinates playerPosition = playerController->getPosition();
             cout << "\033[" << playerPosition.get_y() << ";" << playerPosition.get_x() << "H" << playerController->getEntitySprite();
         }
+
         
 };
 
@@ -475,11 +485,13 @@ class gameController : public object{
 
         int button_count;
         bool isMenuActive;
-        node4d* buttonList = nullptr;
-        pointerlist4d* buttonPointers = nullptr;
+
         gameState state;
+
         node4d* selectedButton;
         scene* scenaPrincipale;
+        node4d* buttonList = nullptr;
+        pointerlist4d* buttonPointers = nullptr;
 
     public:        
 
@@ -487,6 +499,7 @@ class gameController : public object{
         void setGameState(gameState newState){ state = newState; checkState();}
 
         scene& getPrincipalScene(){return *scenaPrincipale;} 
+
         
         enum buttonTypes getSelectedButtonType(){
             button* tmp =dynamic_cast<button*>(selectedButton->oggetto);
@@ -635,11 +648,15 @@ class gameController : public object{
             deleteButtonList();
             switch (type){
                 case newGameButton:{
-                    newSceneWithNewPlayer(1);
+                    newScene(1);
                     setGameState(world);
                     break;
                     }
+                case saveButton :
+                    saveState();
+                    break;
                 case continueButton :
+                    loadSavestate();
                     break;
                 case exitButton : 
                     exit(0);
@@ -695,19 +712,10 @@ class gameController : public object{
 
         void newScene(int sceneID){
             getPrincipalScene().deleteScene();
-            getPrincipalScene().createMap(sceneID);
+            getPrincipalScene().loadScene(sceneID);
             getPrincipalScene().draw();
         }
 
-        void newSceneWithNewPlayer(int sceneID){
-            getPrincipalScene().deleteScene();
-            getPrincipalScene().createMap(sceneID);
-            player* hero = new player();
-            hero->setPosition(coordinates(20, 10));
-            scenaPrincipale->setPlayer(hero);
-            scenaPrincipale->addObjectToObjectList(hero);
-            getPrincipalScene().draw();
-        }
 
         void toggleMenu(){  
             int xButtonPos = 105;
@@ -824,17 +832,12 @@ int main(){
     scene* scena1 = new scene();
     gameManager.setPrincipalScene(*scena1);
 
-    run(scena1);
+    intro(scena1);
 
     system("Pause");
 
     return 0;
 }
-
-void run(scene* scena){
-    intro(scena);
-}
-
 
 void intro(scene* scena){
 
@@ -854,6 +857,9 @@ void intro(scene* scena){
     scena->addObjectToObjectList(secondo);
     scena->addObjectToObjectList(terzo);
     scena->addObjectToObjectList(quarto);
+
+    player* hero = new player();
+    gameManager.getPrincipalScene().setPlayer(hero);
 
     writeTitle("the game");
     setFixedPointer(position_end);
@@ -1146,16 +1152,16 @@ void worldInputManager(){
 
         switch(input){
         case 'w' :
-            gameManager.getPrincipalScene().movePlayerUp();
+            gameManager.getPrincipalScene().moveplayer(directions::up);
             break;
         case 'a' :
-            gameManager.getPrincipalScene().movePlayerToLeft();
+            gameManager.getPrincipalScene().moveplayer(directions::left);
             break;
         case 's' :
-            gameManager.getPrincipalScene().movePlayerDown();
+            gameManager.getPrincipalScene().moveplayer(directions::down);
             break;
         case 'd' :
-            gameManager.getPrincipalScene().movePlayerToRight();
+            gameManager.getPrincipalScene().moveplayer(directions::right);
             break;    
         case '\r' :
             
@@ -1181,4 +1187,57 @@ void drawEmptyScene(){
         cout << "|" << setfill(' ') << setw(screenLenght) << "|" << endl;
     }
     drawLine();
+}
+
+void saveState(){
+    coordinates lastPlayerPosition = gameManager.getPrincipalScene().getPlayer()->getPosition();
+    int mapId = gameManager.getPrincipalScene().getId(); 
+    ofstream savefile("SaveFile.txt");
+    savefile  << "map = " << mapId << endl << "player_position = (" << lastPlayerPosition.get_x() << ";" << lastPlayerPosition.get_y() << ")"; 
+    savefile.close();
+}
+
+void loadSavestate(){ // modificare e utilizzare le posizioni fisse per trovare i dati
+    //usare line.find(' ') per trovare direttamente il carattere senza dover scorrere tutta la stringa, restituisce un int
+    int i = 0;
+    string word,line;
+    int x,y;
+    int sceneId;
+    int p1,p2,p3;
+    ifstream savefile("SaveFile.txt");
+    while(getline(savefile,line)){
+        word.clear();
+        switch(i){
+            case 0:
+                    p1 = line.find('=');
+                    word = line[p1 +2];
+                    sceneId = stoi(word);
+                    break;
+            case 1 : 
+                p1 = line.find('(');
+                p2 = line.find(';');
+                p3 = line.find(')');
+                for(int n = p1 + 1; n < p2; n++){
+                    word += line[n]; 
+                }
+
+                x = stoi(word);
+                word.clear();
+                
+                for(int n = p2 + 1; n < p3; n++){
+                    word += line[n]; 
+                }
+                y = stoi(word);
+
+                gameManager.getPrincipalScene().getPlayer()->setPosition(coordinates(x,y));
+
+                break;
+            default :
+                break;
+        }
+        i++;
+    }
+    gameManager.newScene(sceneId);
+    gameManager.setGameState(world);
+    savefile.close();
 }

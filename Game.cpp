@@ -67,6 +67,7 @@ enum buttonTypes{
 const int screenHeight = 27;
 const int screenLenght = 119;
 const int letterLines = 5;
+const int mapHeight = 29;
 
 
 
@@ -149,7 +150,7 @@ class layer : public object{
             int currentMap = 0;
             int i = 0;
             string temp;
-            ifstream inputFile("mappe.txt");
+            ifstream inputFile("Data/mappe.txt");
             while(getline(inputFile, temp)){ 
                 if(temp == ";"){
                     currentMap++;
@@ -225,7 +226,7 @@ class player : public entity{
             }
         }
         void moveRight(){
-            if(position.get_x()  < screenLenght){
+            if(position.get_x() < screenLenght){
                 position.set_x(position.get_x() + 1);
             }
         }
@@ -254,8 +255,7 @@ class scene : public object{
 
         string temp;
         coordinates playerPosition;
-
-        int mapHeight = 29;
+  
         int id;
         
     public :
@@ -277,26 +277,39 @@ class scene : public object{
             switch (direction){
                 case directions::up: 
                     if(y > 2 && !isColliding(playerController,directions::up)){
+                        if(isInBorder(directions::up)){
+                            //carica la mappa di sopra
+                            return;
+                        }   
                         cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y - 1 << ";" << x << "H" << sprite;
                         playerController->moveUp();
                     }
                     break;
                 case directions::down:
                     if(y < screenHeight + 1 && !isColliding(playerController,directions::down)){
-                            cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y + 1 << ";" << x << "H" << sprite;
-                            playerController->moveDown();
-                        }
+                        if(isInBorder(directions::down)){
+                            return;
+                        } 
+                        cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y + 1 << ";" << x << "H" << sprite;
+                        playerController->moveDown();
+                    }
                     break;
                 case directions::left:
-                    if(x > 2 && !isColliding(playerController,directions::left)){
+                    if(x > 2 && !isColliding(playerController,directions::left)){   
+                        if(isInBorder(directions::left)){
+                            return;
+                        }
                         cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y  << ";" << x - 1 << "H" << sprite;
                         playerController->moveLeft();
                     }
                     break;
                 case directions::right:
-                    if(x < screenLenght && !isColliding(playerController,directions::right)){
+                    if(x < screenLenght && !isColliding(playerController,directions::right)){ 
+                        if(isInBorder(directions::right)){
+                            return;
+                        }   
                         cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y << ";" << x + 1 << "H" << sprite;
-                        playerController->moveRight();
+                        playerController->moveRight();            
                     }
                     break;
                 default:
@@ -407,6 +420,85 @@ class scene : public object{
             cout << "\033[" << playerPosition.get_y() << ";" << playerPosition.get_x() << "H" << playerController->getEntitySprite();
         }
 
+        bool isInBorder(directions direction){
+             
+            int x = playerController->getPosition().get_x();
+            int y = playerController->getPosition().get_y();
+            switch (direction)
+            {
+            case directions::up:
+                if(y == 2){
+                    return true;
+                }
+                break;
+                
+            case directions::down:
+                if(y == screenHeight + 1){
+                    return true;
+                }
+                break;
+
+            case directions::left:
+                if(x == 2){
+                    return true;
+                }
+                break;
+
+            case directions::right:
+                if(x == screenLenght){
+                    return true;
+                }
+                break;
+
+            default:
+                return false;
+                break;
+            }
+            return false;
+        }
+
+        int getNearMap(int id,directions direction){
+            ifstream mapNeighbors("Data/MapNeighbors.txt");
+            string line,word;
+            int p1,p2;
+            while (getline(mapNeighbors,line)){
+                if(stoi(word = line[0]) == id){
+                    switch(direction){
+                        case directions::nord :
+                            p1 = line.find('N');
+                            p2 = line.find(',',p1);
+                            word = line.substr(p1 + 4 , p2 - (p1 + 4));// il 4 è l'offset di distanza tra la n e il numero
+                            return stoi(word);
+                            break;
+                        case directions::sud :
+                            p1 = line.find('S');
+                            p2 = line.find(',',p1);
+                            word = line.substr(p1 + 4 , p2 - (p1 + 4));
+                            return stoi(word);
+                            break;
+                        case directions::est :
+                            p1 = line.find('E');
+                            p2 = line.find(',',p1);
+                            word = line.substr(p1 + 4 , p2 - (p1 + 4));
+                            return stoi(word);
+                            break;
+                        case directions::ovest :
+                            p1 = line.find('W');
+                            p2 = line.find(',',p1);
+                            word = line.substr(p1 + 4 , p2 - (p1 + 4));
+                            return stoi(word);
+                            break;
+                        default :
+                            return 0;
+                    }
+                    
+                }   
+                    
+            }
+            
+            mapNeighbors.close();
+            return 0;
+        }
         
 };
 
@@ -549,10 +641,10 @@ class gameController : public object{
             addbuttonPointer(nodo);
 
             nodo->oggetto = newButton;
-            nodo->up = getNeighbour(position,directions::up);
-            nodo->down = getNeighbour(position,directions::down);
-            nodo->left = getNeighbour(position,directions::left);
-            nodo->right = getNeighbour(position,directions::right);
+            nodo->up = getNeighbor(position,directions::up);
+            nodo->down = getNeighbor(position,directions::down);
+            nodo->left = getNeighbor(position,directions::left);
+            nodo->right = getNeighbor(position,directions::right);
             nodo->posizione = position;
             
             updateListLinks();
@@ -565,20 +657,20 @@ class gameController : public object{
             buttonPointers = tmp;
         }
 
-        node4d* getNeighbour(coordinates position, directions direction){
-            node4d* neighbour = gotoNode(position);
-            if(neighbour == NULL){
+        node4d* getNeighbor(coordinates position, directions direction){
+            node4d* neighbor = gotoNode(position);
+            if(neighbor == NULL){
                 return NULL;
             }
             switch(direction){
                 case directions::up: 
-                    return neighbour->up;
+                    return neighbor->up;
                 case directions::down: 
-                    return neighbour->down;
+                    return neighbor->down;
                 case directions::right:
-                    return neighbour->right; 
+                    return neighbor->right; 
                 case directions::left: 
-                    return neighbour->left;
+                    return neighbor->left;
                 default:
                     return NULL;
             }
@@ -675,7 +767,7 @@ class gameController : public object{
         }
         
         void updateListLinks(){
-            coordinates nodePosition, neighbourPosition;
+            coordinates nodePosition, neighborPosition;
             pointerlist4d* tmp = buttonPointers; 
             pointerlist4d *next = buttonPointers->next;
             int diff_x, diff_y;
@@ -686,10 +778,10 @@ class gameController : public object{
                 
                 while (next != NULL){
 
-                    neighbourPosition = next->pointer->posizione;
+                    neighborPosition = next->pointer->posizione;
 
-                    diff_x = nodePosition.get_x() - neighbourPosition.get_x();
-                    diff_y = nodePosition.get_y() - neighbourPosition.get_y();
+                    diff_x = nodePosition.get_x() - neighborPosition.get_x();
+                    diff_y = nodePosition.get_y() - neighborPosition.get_y();
 
                     if(diff_x == 0 && diff_y == 1){
                         tmp->pointer->up = next->pointer;
@@ -1197,7 +1289,7 @@ void drawEmptyScene(){
 void saveState(){
     coordinates lastPlayerPosition = gameManager.getPrincipalScene().getPlayer()->getPosition();
     int mapId = gameManager.getPrincipalScene().getId(); 
-    ofstream savefile("SaveFile.txt");
+    ofstream savefile("Data/SaveFile.txt");
     savefile  << "map = " << mapId << endl << "player_position = (" << lastPlayerPosition.get_x() << ";" << lastPlayerPosition.get_y() << ")"; 
     savefile.close();
 }
@@ -1208,7 +1300,7 @@ void loadSavestate(){
     int x,y;
     int sceneId;
     int p1,p2,p3;
-    ifstream savefile("SaveFile.txt");
+    ifstream savefile("Data/SaveFile.txt");
     while(getline(savefile,line)){
         word.clear();
         switch(i){
@@ -1248,7 +1340,7 @@ coordinates getMapLink(int mapId, directions compassDirection){
     coordinates position;
     string line;
     int i = 0;
-    ifstream linkFile("MapData.txt");
+    ifstream linkFile("Data/MapData.txt");
     while(getline(linkFile,line)){
         if(i == mapId - 1){
             position = linkDirection(mapId,compassDirection,line);

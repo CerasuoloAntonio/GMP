@@ -249,7 +249,7 @@ class monster : public entity{
 class scene : public object{
     private : 
 
-        node* sceneList;
+        node* sceneList = nullptr;
         layer* layer_1 = new layer();
         player* playerController = nullptr; 
 
@@ -276,9 +276,9 @@ class scene : public object{
 
             switch (direction){
                 case directions::up: 
-                    if(y > 2 && !isColliding(playerController,directions::up)){
+                    if(y > 1 && !isColliding(playerController,directions::up)){
                         if(isInBorder(directions::up)){
-                            //carica la mappa di sopra
+                            loadNearMap(id,directions::nord);
                             return;
                         }   
                         cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y - 1 << ";" << x << "H" << sprite;
@@ -286,8 +286,9 @@ class scene : public object{
                     }
                     break;
                 case directions::down:
-                    if(y < screenHeight + 1 && !isColliding(playerController,directions::down)){
+                    if(y - 1 < screenHeight + 1 && !isColliding(playerController,directions::down)){
                         if(isInBorder(directions::down)){
+                            loadNearMap(id,directions::sud);
                             return;
                         } 
                         cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y + 1 << ";" << x << "H" << sprite;
@@ -295,8 +296,9 @@ class scene : public object{
                     }
                     break;
                 case directions::left:
-                    if(x > 2 && !isColliding(playerController,directions::left)){   
+                    if(x > 1 && !isColliding(playerController,directions::left)){   
                         if(isInBorder(directions::left)){
+                            loadNearMap(id,directions::ovest);
                             return;
                         }
                         cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y  << ";" << x - 1 << "H" << sprite;
@@ -304,8 +306,9 @@ class scene : public object{
                     }
                     break;
                 case directions::right:
-                    if(x < screenLenght && !isColliding(playerController,directions::right)){ 
+                    if(x - 1 < screenLenght && !isColliding(playerController,directions::right)){ 
                         if(isInBorder(directions::right)){
+                            loadNearMap(id,directions::est);
                             return;
                         }   
                         cout << "\033["<< y << ";" << x << "H" << line << "\033["<< y << ";" << x + 1 << "H" << sprite;
@@ -331,7 +334,6 @@ class scene : public object{
         void loadScene(int loadMapId){
             setId(loadMapId);
             layer_1->setLayer(loadMapId);
-            addObjectToObjectList(layer_1);
         }
 
         void deleteScene(){
@@ -364,8 +366,6 @@ class scene : public object{
             }
 
             sceneList = nullptr;
-
-            delete this;
         }
 
         bool isColliding(entity* collider, enum directions direction){
@@ -500,6 +500,22 @@ class scene : public object{
             return 0;
         }
         
+        void loadNearMap(int mapid, directions direction){
+            int newId = getNearMap(mapid,direction);;
+            if(newId != 0){
+                playerController->setPosition(getMapLink(newId,direction));
+                loadNewScene(newId);
+                id = newId;
+            }
+        }
+
+        void loadNewScene(int id){
+            destroyScene();
+            deleteScene();
+            loadScene(id);
+            draw();
+        }
+
 };
 
 class interactable : public object{
@@ -809,9 +825,7 @@ class gameController : public object{
         }
 
         void newScene(int sceneID){
-            getPrincipalScene().deleteScene();
-            getPrincipalScene().loadScene(sceneID);
-            getPrincipalScene().draw();
+            getPrincipalScene().loadNewScene(sceneID);
         }
 
 
@@ -1336,6 +1350,7 @@ void loadSavestate(){
     savefile.close();
 }
 
+//restituisce le coordinate in cui dovrebbe spawnare il player quando si cambia mappa
 coordinates getMapLink(int mapId, directions compassDirection){
     coordinates position;
     string line;
@@ -1351,6 +1366,8 @@ coordinates getMapLink(int mapId, directions compassDirection){
     return position;
 }
 
+
+//legge la sstringa e trova le coordinate in base alla direzione della mappa da cercare
 coordinates linkDirection(int id, directions cardinalDirection, string line){
     coordinates result;
     string word;
@@ -1359,16 +1376,16 @@ coordinates linkDirection(int id, directions cardinalDirection, string line){
     word.clear();
     switch(cardinalDirection){
         case directions::nord :
-            direction = 'N';
-            break;
-        case directions::sud :
             direction = 'S';
             break;
+        case directions::sud :
+            direction = 'N';
+            break;
         case directions::est :
-            direction = 'E';
+            direction = 'O';
             break;
         case directions::ovest :
-            direction = 'O';
+            direction = 'E';
             break;
         default :
             return result;

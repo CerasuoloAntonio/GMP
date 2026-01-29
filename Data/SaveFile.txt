@@ -1,2 +1,2 @@
 map = 1
-player_position = (73;23)
+player_position = (86;15)

@@ -4,7 +4,7 @@
 #include <fstream>
 #include <conio.h>
 #ifdef _WIN32
-#include <windows.h>
+    #include <windows.h>
 #endif
 
 /*              ~appunti~
@@ -324,6 +324,12 @@ class scene : public object{
             initializeObjectList();
         }
 
+        ~scene(){
+            delete layer_1;
+            delete playerController;
+            destroyScene();
+        }
+
         void draw(){
             for(int i = 0; i < mapHeight; i++){
                 cout << layer_1->getLayerLine(i) << endl;
@@ -462,7 +468,7 @@ class scene : public object{
             string line,word;
             int p1,p2;
             while (getline(mapNeighbors,line)){
-                if(stoi(word = line[0]) == id){
+                if(stoi(word = line[0]) == id){ // cambiare stoi per fargi ricevere più di un numero
                     switch(direction){
                         case directions::nord :
                             p1 = line.find('N');
@@ -894,7 +900,7 @@ class gameController : public object{
             }
         }
 
-        void deleteButtonList(){
+        void deleteButtonList(){ // cancellare i pulsanti con delete
             buttonList = nullptr;
         }
 };

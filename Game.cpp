@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 #include <conio.h>
+
 #ifdef _WIN32
     #include <windows.h>
 #endif
@@ -94,12 +95,12 @@ int calculateAlignmentY(enum alignment position, int textLength);
 coordinates getMapLink(int mapId, directions compassDirection);
 coordinates linkDirection(int id, directions cardinalDirection, string line);
 
-class object{
+class object{ // copiata
     public :
         virtual ~object(){}
 };
 
-struct node{
+struct node{ // copiata
     object* ogetto;
     node* next;
 };

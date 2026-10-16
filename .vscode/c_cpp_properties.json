@@ -19,7 +19,8 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/bin/classes"
             ],
             "defines": [],
             "cStandard": "c17",

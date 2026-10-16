@@ -1,5 +1,6 @@
 #include <object.cpp>
 #include <gamemath.cpp>
+#include <iostream>
 
 class coordinates : public object{
     private :
